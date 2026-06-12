@@ -99,8 +99,8 @@ namespace Unity2Cocos
 				_ => false
 			};
 			
-			// FIXME: Cocos uses a fixed value. The calculation method has not been guessed.
-			var subAssetUuid = isNormalMap ? "3c318" : "6c48a";
+			// Cocos sub-asset id is derived from the sub-asset name. ("normalMap" -> 3c318, "texture" -> 6c48a)
+			var subAssetUuid = Utils.CocosNameToSubId(isNormalMap ? "normalMap" : "texture");
 			var fullUuid = $"{ccMeta.uuid}@{subAssetUuid}";
 
 			var subMetas = new Dictionary<string, SubMeta>();
@@ -148,7 +148,7 @@ namespace Unity2Cocos
 			var ccMeta = new Meta();
 
 			var info = new ExportInfo(srcPath, Exporter.OutputFolderPath, ".png");
-			var subAssetUuid = "6c48a";
+			var subAssetUuid = Utils.CocosNameToSubId("texture");
 			var fullUuid = $"{ccMeta.uuid}@{subAssetUuid}";
 			var subMetas = new Dictionary<string, SubMeta>();
 			var subMeta = new SubMeta()

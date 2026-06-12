@@ -1,6 +1,4 @@
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -9,30 +7,6 @@ namespace Unity2Cocos
 {
 	public static class FBXExporter
 	{
-		private class MeshSubMeta : cc.Meta
-		{
-			public string displayName = "";
-			public string id;
-			public string name;
-
-			public class UserData
-			{
-				public int gltfIndex;
-				public int triangleCount;
-			}
-			
-			public MeshSubMeta()
-			{
-				ver = "1.1.1";
-				importer = "gltf-mesh";
-				files = new[]
-				{
-					".bin",
-					".json"
-				};
-			}
-		}
-		
 		private class Meta : cc.Meta
 		{
 			public class UserData
@@ -41,75 +15,55 @@ namespace Unity2Cocos
 				{
 					{ "smartMaterialEnabled", false }
 				};
-				// public string redirect;
 				public Dictionary<string, List<string>> assetFinder = new();
 			}
-			
+
 			public Meta()
 			{
 				ver = "2.3.12";
 				importer = "fbx";
 			}
 		}
-		
+
 		public static string Export(AssetExporter.ExportInfo info, Object source)
 		{
-			var meshMatchMethod = ExportSetting.Instance.meshIDMatchMethod;
-			
 			var ccMeta = new Meta();
-			var subMetas = new Dictionary<string, object>();
-			var userData = new Meta.UserData();
-			ccMeta.subMetas = subMetas;
-			ccMeta.userData = userData;
-			
+			ccMeta.userData = new Meta.UserData();
+
+			// Cocos Creator assigns each sub-asset an id derived from its name ("<mesh name>.mesh").
+			// Compute the same id here so that scene references resolve without any post-processing.
 			var result = string.Empty;
 			var meshes = AssetDatabase.LoadAllAssetsAtPath(info.UnityAssetPath).OfType<Mesh>().ToArray();
-			for (var i = 0; i < meshes.Length; ++i)
+			var usedSubIds = new HashSet<string>();
+			foreach (var mesh in meshes)
 			{
-				var mesh = meshes[i];
-				var subMeta = new MeshSubMeta();
-				
-				// var subUserData = new MeshSubMeta.UserData();
-				// subUserData.gltfIndex = i;
-				// subUserData.triangleCount = mesh.triangles.Length / 3;
-				// subMeta.userData = subUserData;
-				// subMeta.name = mesh.name + ".mesh";
-				// subMeta.id = "xxxxx";
-				// subMeta.uuid = $"{ccMeta.uuid}@{subMeta.id}";
-				
-				// FIXME: Originally, a 5-digit hex value is assigned after @ by Cocos,
-				// but due to the unknown calculation method,
-				// the mesh name or triangles count assigned and resolved later by executing a Python script.
-				switch (meshMatchMethod)
+				var subName = $"{mesh.name}.mesh";
+				var extend = 0;
+				var subId = Utils.CocosNameToSubId(subName);
+				while (!usedSubIds.Add(subId))
 				{
-					case ExportSetting.MeshIDMatchMethodType.MeshName:
-						subMeta.uuid = $"{ccMeta.uuid}@mesh-name:{mesh.name}.mesh";
-						break;
-					
-					case ExportSetting.MeshIDMatchMethodType.Triangles:
-						subMeta.uuid = $"{ccMeta.uuid}@mesh-triangles:{mesh.triangles.Length / 3}";
-						break;
+					// Cocos extends the id on name collision.
+					// NOTE: Cocos import order is not guaranteed to match Unity's sub-asset order.
+					subId = Utils.CocosNameToSubId(subName, ++extend);
 				}
-				
-				// if (!userData.assetFinder.TryGetValue("meshes", out var list))
-				// {
-				// 	list = new List<string>();
-				// 	userData.assetFinder.Add("meshes", list);
-				// }
-				// list.Add(subMeta.uuid);
-				
+				if (extend > 0)
+				{
+					Debug.LogWarning(
+						"[FBXExporter] Duplicate mesh name in FBX, reference may need to be fixed manually on Cocos. " +
+						$"-> {info.UnityAssetName}<{mesh.name}>");
+				}
+
+				var uuid = $"{ccMeta.uuid}@{subId}";
 				if (mesh.Equals(source))
 				{
-					result = subMeta.uuid;
+					result = uuid;
 				}
-				Exporter.AddAssetMap(mesh, subMeta.uuid);
-				
-				// subMetas.Add(subMeta.id, subMeta);
+				Exporter.AddAssetMap(mesh, uuid);
 			}
-			
+
 			AssetExporter.ExportAssetCopy(info);
 			AssetExporter.ExportMeta(ccMeta, info);
-			
+
 			return result;
 		}
 	}

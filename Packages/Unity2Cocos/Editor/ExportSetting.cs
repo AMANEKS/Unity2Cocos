@@ -29,14 +29,6 @@ namespace Unity2Cocos
 		[Tooltip("Ambient light of Unity and Cocos is very different, turn ON if you want to use the Cocos defaults.")]
 		public bool UseCocosAmbientLightInfo = false;
 
-		public enum MeshIDMatchMethodType
-		{
-			MeshName,
-			Triangles,
-		}
-		[Tooltip("For identifying imported meshes in Cocos. More details in the documentation.")]
-		public MeshIDMatchMethodType meshIDMatchMethod = MeshIDMatchMethodType.MeshName;
-
 		[Serializable]
 		public class AdvancedSettings
 		{

@@ -85,30 +85,12 @@ Use the `com.unity.nuget.newtonsoft-json >= 3.0.2`
 
 - Select export directory (root directory of Cocos project).
 
-### 4. Run Python script
+### 4. Open in Cocos Creator
 
-FBX mesh uuid that cannot be identified on Unity is modified by Python scripts after importing into Cocos.
+- Open the project in Cocos Creator and let it import the exported assets, then open the scene.
 
-- Run the Python script `Packages/Unity2Cocos/Tools/replace_mesh_id.py`.
-
-```zsh
-% python3 ./Packages/Unity2Cocos/Tools/replace_mesh_id.py
-
-Enter the folder path: [Your export directory]
-```
-
-- If you see the following, you have succeeded. Open the scene in Cocos and check it.
-
-
-```zsh
-...
-
-- Replace: 929e9c50-5f7a-41ae-93db-7aedb8c94ac4@mesh-name:safety_hat_low.mesh -> 3d871
-- Replace: b332724b-ff23-422d-9369-99df2ab5a6ac@mesh-name:level_low.mesh -> 78d63
-- Replace: d05f7138-939f-4ab0-a06b-1b7e76e0c6c3@mesh-name:safety_goggles_low.mesh -> c40d4
-
---- Replace mesh id end ---
-```
+FBX mesh references are exported with the same sub-asset ids that Cocos Creator generates
+(derived from the mesh name), so no post-processing is required.
 
 ## Setting
 
@@ -119,7 +101,6 @@ Enter the folder path: [Your export directory]
 | Export Web Like Paths | ex) SampleScene → sample-scene |
 | URP Asset | If not specified, the currently used Asset is adopted. |
 | Use Cocos Ambient Light Info | Ambient light of Unity and Cocos is very different, turn ON if you want to use the Cocos defaults. |
-| Mesh Id Match Method | Since Unity cannot know the UUID assigned to the FBXMesh on the Cocos side, we set up a Python script to search for the UUID when modifying the FBXMesh.<br><br>Mesh Name - Search by mesh name.<br>Triangles - Search by polygon count.<br><br>Choose the one that works best for your project. Note that neither is perfect, so you may need to set up references manually. |
 | Advanced/ | (Details omitted.) |
 
 ## Support Status

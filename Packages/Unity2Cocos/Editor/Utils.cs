@@ -2,8 +2,10 @@ using System;
 using System.Text;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -57,6 +59,16 @@ namespace Unity2Cocos
 			for (var i = 0; i < paths.Length; ++i)
 			{
 				var path = paths[i];
+				var extension = string.Empty;
+				if (i == paths.Length - 1)
+				{
+					// Exclude the extension from kebab-case conversion. (ex. ".FBX" -> ".-fbx")
+					extension = Path.GetExtension(path);
+					if (!string.IsNullOrEmpty(extension))
+					{
+						path = path.Substring(0, path.Length - extension.Length);
+					}
+				}
 				input += string.Concat(path.Select(
 					(x, charIdx) =>
 					{
@@ -71,12 +83,47 @@ namespace Unity2Cocos
 						}
 						return x.ToString();
 					}));
+				input += extension;
 				if (i < paths.Length - 1)
 				{
 					input += '/';
 				}
 			}
 			return input.Replace("--", "-").ToLower();
+		}
+
+		private static readonly int[] _subIdMainIndices = { 0, 6, 16, 25, 31 };
+		private static readonly int[] _subIdExtendIndices =
+		{
+			1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17,
+			18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30
+		};
+
+		/// <summary>
+		/// Cocos Creator asset-db `nameToSubId`.
+		/// Sub-asset ids are picked from fixed positions of the MD5 hex digest of the sub-asset name.
+		/// (ex. "texture" -> "6c48a", "Urn_03.mesh" -> "4ce67")
+		/// </summary>
+		public static string CocosNameToSubId(string name, int extend = 0)
+		{
+			using var md5 = MD5.Create();
+			var hashBytes = md5.ComputeHash(Encoding.UTF8.GetBytes(name));
+			var hex = new StringBuilder(hashBytes.Length * 2);
+			foreach (var b in hashBytes)
+			{
+				hex.Append(b.ToString("x2"));
+			}
+			var subId = new StringBuilder();
+			foreach (var index in _subIdMainIndices)
+			{
+				subId.Append(hex[index]);
+			}
+			// Cocos extends the id with additional digest characters on collision.
+			for (var i = 0; i < extend && i < _subIdExtendIndices.Length; ++i)
+			{
+				subId.Append(hex[_subIdExtendIndices[i]]);
+			}
+			return subId.ToString();
 		}
 
 		public static string GetTransformPath(Transform t)
