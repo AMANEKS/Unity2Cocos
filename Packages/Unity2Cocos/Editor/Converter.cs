@@ -67,15 +67,39 @@ namespace Unity2Cocos
 		private static void ConvertTransformAndChildren(int parent, Transform t, List<CCType> list)
 		{
 			var nodeId = list.Count;
-			var node = TransformToNode(t);
+			var hasRenderableMesh =
+				t.TryGetComponent<UnityEngine.MeshFilter>(out var meshFilter) && meshFilter.sharedMesh &&
+				t.TryGetComponent<UnityEngine.MeshRenderer>(out _);
+			// FBX mesh display requires correction (LH -> RH 180 deg & FBX default position offset),
+			// but it must not propagate to children.
+			// If the node has children, isolate the correction into a dedicated child node.
+			var useMeshCorrectionNode = hasRenderableMesh && t.childCount > 0;
+			var node = TransformToNode(t, hasRenderableMesh && !useMeshCorrectionNode);
 			node._parent = new SceneNodeId(parent);
 			AddUnityComponentToNodeIdCache(t, list.Count);
 			list.Add(node);
+
+			var meshHostNodeId = nodeId;
+			var meshHostNode = node;
+			if (useMeshCorrectionNode)
+			{
+				meshHostNodeId = list.Count;
+				meshHostNode = CreateMeshCorrectionNode(t, meshFilter, nodeId);
+				node._children.Add(new SceneNodeId(meshHostNodeId));
+				list.Add(meshHostNode);
+			}
 
 			var transformPath = Utils.GetTransformPath(t);
 			var components = t.GetComponents<UnityEngine.Component>();
 			foreach (var component in components)
 			{
+				if (!component)
+				{
+					// GetComponents returns null for components whose script is missing.
+					Debug.LogWarning(
+						$"[Converter] Skipped of missing script component. -> {transformPath}");
+					continue;
+				}
 				if (component is Transform)
 				{
 					continue;
@@ -93,17 +117,20 @@ namespace Unity2Cocos
 					converter = _monoBehaviourConverter;
 				}
 
+				var hostNodeId = component is UnityEngine.MeshRenderer ? meshHostNodeId : nodeId;
+				var hostNode = component is UnityEngine.MeshRenderer ? meshHostNode : node;
+
 				var results = converter.ConvertExecute(component, list.Count);
 				var ccTypes = results as CCType[] ?? results.ToArray();
 				if (!ccTypes.Any()) continue;
-				
+
 				AddUnityComponentToNodeIdCache(component, list.Count);
 				foreach (var result in ccTypes)
 				{
 					if (result is cc.Component ccComponent)
 					{
-						ccComponent.node = new SceneNodeId(nodeId);
-						node._components.Add(new SceneNodeId(list.Count));
+						ccComponent.node = new SceneNodeId(hostNodeId);
+						hostNode._components.Add(new SceneNodeId(list.Count));
 					}
 
 					list.Add(result);
@@ -116,41 +143,37 @@ namespace Unity2Cocos
 				ConvertTransformAndChildren(nodeId, t.GetChild(i), list);
 			}
 		}
+
+		/// <summary>
+		/// Node that applies mesh display correction to its own mesh only, without affecting scene children.
+		/// </summary>
+		private static Node CreateMeshCorrectionNode(Transform t, UnityEngine.MeshFilter meshFilter, int parentId)
+		{
+			var p = -GetMeshDefaultPosition(meshFilter);
+			var r = IsRightHanded ? Quaternion.AngleAxis(180f, Vector3.up) : Quaternion.identity;
+			return new Node
+			{
+				_name = $"{t.name} (Mesh)",
+				_active = true,
+				_parent = new SceneNodeId(parentId),
+				_lpos = Utils.Vector3ToVec3(p.RightHanded()),
+				_lrot = Utils.QuaternionToQuat(r),
+				_lscale = new Vec3 { x = 1, y = 1, z = 1 },
+				_mobility = t.gameObject.isStatic ? 0 : 2,
+				_euler = Utils.EulerAnglesToVec3(r.eulerAngles),
+				_layer = 1 << Utils.LayerConvert(t.gameObject.layer)
+			};
+		}
 		
-		private static Node TransformToNode(Transform t)
+		private static Node TransformToNode(Transform t, bool applyMeshCorrection)
 		{
 			var p = t.localPosition;
 			var r = t.localRotation;
-			if (t.TryGetComponent<UnityEngine.MeshFilter>(out var meshFilter) && meshFilter.sharedMesh)
+			if (applyMeshCorrection && t.TryGetComponent<UnityEngine.MeshFilter>(out var meshFilter) && meshFilter.sharedMesh)
 			{
-				// In Cocos, meshes below FBX have a value of 0. (There are rare exceptions.)
-				// Instantiate Mesh, check initial coordinates, and take diff.
-				var hash = meshFilter.sharedMesh.GetHashCode();
-				if (!_meshDefaultPositions.TryGetValue(hash, out var defaultPos))
-				{
-					var assetPath = AssetDatabase.GetAssetPath(meshFilter.sharedMesh);
-					if (string.Equals(Path.GetExtension(assetPath), ".fbx", StringComparison.OrdinalIgnoreCase))
-					{
-						var root = AssetDatabase.LoadMainAssetAtPath(assetPath) as GameObject;
-						if (root)
-						{
-							var obj = GameObject.Instantiate(root);
-							var defaultMeshFilter = obj.GetComponentsInChildren<MeshFilter>()
-								.FirstOrDefault(x => x.sharedMesh && x.sharedMesh.Equals(meshFilter.sharedMesh));
-							if (defaultMeshFilter)
-							{
-								defaultPos = defaultMeshFilter.transform.localPosition;
-							}
-							GameObject.DestroyImmediate(obj);
-						}
-					}
-					_meshDefaultPositions.Add(hash, defaultPos);
-				}
-				p = t.localPosition;
-				p -= defaultPos;
+				p -= GetMeshDefaultPosition(meshFilter);
 				if (IsRightHanded)
 				{
-					// BUG: Doesn't work correctly when nested mesh.
 					r *= Quaternion.AngleAxis(180f, Vector3.up);
 				}
 			}
@@ -177,6 +200,37 @@ namespace Unity2Cocos
 				_euler = Utils.EulerAnglesToVec3(r.RightHanded().eulerAngles),
 				_layer = 1 << Utils.LayerConvert(t.gameObject.layer)
 			};
+		}
+
+		/// <summary>
+		/// In Cocos, meshes below FBX have a value of 0. (There are rare exceptions.)
+		/// Instantiate Mesh, check initial coordinates, and take diff.
+		/// </summary>
+		private static Vector3 GetMeshDefaultPosition(UnityEngine.MeshFilter meshFilter)
+		{
+			var hash = meshFilter.sharedMesh.GetHashCode();
+			if (_meshDefaultPositions.TryGetValue(hash, out var defaultPos))
+			{
+				return defaultPos;
+			}
+			var assetPath = AssetDatabase.GetAssetPath(meshFilter.sharedMesh);
+			if (string.Equals(Path.GetExtension(assetPath), ".fbx", StringComparison.OrdinalIgnoreCase))
+			{
+				var root = AssetDatabase.LoadMainAssetAtPath(assetPath) as GameObject;
+				if (root)
+				{
+					var obj = GameObject.Instantiate(root);
+					var defaultMeshFilter = obj.GetComponentsInChildren<MeshFilter>()
+						.FirstOrDefault(x => x.sharedMesh && x.sharedMesh.Equals(meshFilter.sharedMesh));
+					if (defaultMeshFilter)
+					{
+						defaultPos = defaultMeshFilter.transform.localPosition;
+					}
+					GameObject.DestroyImmediate(obj);
+				}
+			}
+			_meshDefaultPositions.Add(hash, defaultPos);
+			return defaultPos;
 		}
 
 		public static void AddSceneNodeIdReplaceable(SceneNodeIdReplaceable replaceable)
