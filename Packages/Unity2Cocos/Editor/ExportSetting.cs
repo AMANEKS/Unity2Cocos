@@ -46,7 +46,7 @@ namespace Unity2Cocos
 
 			[Tooltip("Unity light intensity to Cocos luminance. (Point/Spot)\n" +
 			         "Matches Unity's falloff brightness under the Cocos standard camera exposure.")]
-			public float IntensityToLightLuminance = 20;
+			public float IntensityToLightLuminance = 10;
 			
 			[Tooltip("Ground is too dark, to use Equator.")]
 			public bool IsAmbientGroundUseEquator = true;

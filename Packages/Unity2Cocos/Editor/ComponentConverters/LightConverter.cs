@@ -25,7 +25,9 @@ namespace cc
 		protected LightBase(Light unityLight, int currentId)
 		{
 			var additionalData = unityLight.GetUniversalAdditionalLightData();
-			_color = Utils.Color32ToCocosColor(unityLight.color);
+			// Cocos uses light color as-is in linear space shading (no sRGB conversion),
+			// so export the linear value to match Unity's appearance.
+			_color = Utils.Color32ToCocosColor(unityLight.color.linear);
 			_useColorTemperature = unityLight.useColorTemperature;
 			_colorTemperature = (int)unityLight.colorTemperature;
 			// TODO: Support culling mask.
