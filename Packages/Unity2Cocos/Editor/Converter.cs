@@ -121,7 +121,7 @@ namespace Unity2Cocos
 		{
 			var p = t.localPosition;
 			var r = t.localRotation;
-			if (t.TryGetComponent<UnityEngine.MeshFilter>(out var meshFilter))
+			if (t.TryGetComponent<UnityEngine.MeshFilter>(out var meshFilter) && meshFilter.sharedMesh)
 			{
 				// In Cocos, meshes below FBX have a value of 0. (There are rare exceptions.)
 				// Instantiate Mesh, check initial coordinates, and take diff.
@@ -129,15 +129,18 @@ namespace Unity2Cocos
 				if (!_meshDefaultPositions.TryGetValue(hash, out var defaultPos))
 				{
 					var assetPath = AssetDatabase.GetAssetPath(meshFilter.sharedMesh);
-					if (Path.GetExtension(assetPath) == ".fbx")
+					if (string.Equals(Path.GetExtension(assetPath), ".fbx", StringComparison.OrdinalIgnoreCase))
 					{
 						var root = AssetDatabase.LoadMainAssetAtPath(assetPath) as GameObject;
 						if (root)
 						{
 							var obj = GameObject.Instantiate(root);
-							defaultPos = obj.GetComponentsInChildren<MeshFilter>()
-								.FirstOrDefault(x => x.sharedMesh.Equals(meshFilter.sharedMesh))!
-								.transform.localPosition;
+							var defaultMeshFilter = obj.GetComponentsInChildren<MeshFilter>()
+								.FirstOrDefault(x => x.sharedMesh && x.sharedMesh.Equals(meshFilter.sharedMesh));
+							if (defaultMeshFilter)
+							{
+								defaultPos = defaultMeshFilter.transform.localPosition;
+							}
 							GameObject.DestroyImmediate(obj);
 						}
 					}

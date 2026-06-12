@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
@@ -25,7 +26,7 @@ namespace Unity2Cocos
 				return string.Empty;
 			}
 
-			if (!Path.GetExtension(Info.UnityAssetName).Equals(".fbx"))
+			if (!Path.GetExtension(Info.UnityAssetName).Equals(".fbx", StringComparison.OrdinalIgnoreCase))
 			{
 				Debug.LogWarning($"[MeshExporter] Only FBX is supported. -> {Info.UnityAssetName}");
 				return string.Empty;

@@ -243,8 +243,12 @@ namespace Unity2Cocos
 		public static float GetHDRColorIntensity(UnityEngine.Color hdrColor)
 		{
 			var maxColorComponent = hdrColor.maxColorComponent;
+			if (maxColorComponent <= 0f)
+			{
+				return 0f;
+			}
 			var scaleFactor = 191 / maxColorComponent;
-			return Mathf.Log(255f / scaleFactor) / Mathf.Log(2f); 
+			return Mathf.Log(255f / scaleFactor) / Mathf.Log(2f);
 		}
 		
 		public static UnityEngine.Texture2D CreateReadableTexture2D(UnityEngine.Texture2D src)

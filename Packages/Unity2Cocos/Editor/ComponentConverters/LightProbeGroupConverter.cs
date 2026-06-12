@@ -31,12 +31,9 @@ namespace Unity2Cocos
                 _minPos = new Vec3 { x = int.MaxValue, y = int.MaxValue, z = int.MaxValue },
                 _maxPos = new Vec3 { x = int.MinValue, y = int.MinValue, z = int.MinValue },
             };
-            var parentRot = component.transform.parent ? 
-                component.transform.parent.rotation : Quaternion.identity;
             foreach (var p in component.probePositions)
             {
-                var probe = parentRot * p;
-                probe = component.transform.localRotation * probe;
+                var probe = component.transform.rotation * p;
                 probe = probe.RightHanded();
                 ccLightProbeGroup._probes.Add(Utils.Vector3ToVec3(probe));
 

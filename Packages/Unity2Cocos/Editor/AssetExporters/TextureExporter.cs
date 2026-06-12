@@ -112,8 +112,8 @@ namespace Unity2Cocos
 				name = isNormalMap ? "normalMap" : "texture"
 			};
 			var subUserData = isNormalMap
-				? new SubMeta.UserData()
-				: new SubMeta.NormalMapUserData();
+				? new SubMeta.NormalMapUserData()
+				: new SubMeta.UserData();
 			subUserData.wrapModeS = Utils.TextureWrapModeToCocos(importer.wrapModeU);
 			subUserData.wrapModeT = Utils.TextureWrapModeToCocos(importer.wrapModeV);
 			subUserData.minfilter = subUserData.magfilter = Utils.TextureFilterModeToCocos(importer.filterMode);

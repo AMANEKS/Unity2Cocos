@@ -61,8 +61,8 @@ namespace Unity2Cocos
 				{
 					ccLOD._screenUsagePercentage = i switch
 					{
-						0 => 25,
-						1 => 12.5f,
+						0 => 0.25f,
+						1 => 0.125f,
 						2 => 0.01f,
 						_ => 0
 					};

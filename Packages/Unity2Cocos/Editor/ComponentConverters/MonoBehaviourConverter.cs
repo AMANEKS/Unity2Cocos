@@ -70,7 +70,8 @@ namespace Unity2Cocos
 			}
 			return new CCType[] { new Script()
 			{
-				__type__ = compressedUuid
+				__type__ = compressedUuid,
+				_enabled = component.enabled
 			}};
 		}
 	}

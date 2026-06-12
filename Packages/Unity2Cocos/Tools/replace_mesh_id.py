@@ -12,7 +12,7 @@ def replace_uuids_in_scene(folder_path):
         return
 
     meta_files = [os.path.join(root, file) for root, _, files in os.walk(folder_path) for file in files if
-                  file.endswith('.fbx.meta')]
+                  file.lower().endswith('.fbx.meta')]
     if len(meta_files) == 0:
         print("Not found fbx meta.")
         return

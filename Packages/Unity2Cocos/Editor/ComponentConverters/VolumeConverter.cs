@@ -47,10 +47,13 @@ namespace Unity2Cocos
 			});
 
 			var camera = Camera.main;
-			var additionalData = camera.GetUniversalAdditionalCameraData();
-			if (additionalData && additionalData.antialiasing != AntialiasingMode.None)
+			if (camera)
 			{
-				list.Add(new FXAA());
+				var additionalData = camera.GetUniversalAdditionalCameraData();
+				if (additionalData && additionalData.antialiasing != AntialiasingMode.None)
+				{
+					list.Add(new FXAA());
+				}
 			}
 
 			var profile = component.sharedProfile;

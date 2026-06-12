@@ -83,6 +83,10 @@ namespace Unity2Cocos
 
 		public static void AddAssetMap(UnityEngine.Object asset, string uuid)
 		{
+			if (!asset || string.IsNullOrEmpty(uuid))
+			{
+				return;
+			}
 			var key = asset.GetHashCode();
 			if (_assetMap.ContainsKey(key))
 			{
@@ -98,6 +102,10 @@ namespace Unity2Cocos
 
 		public static string GetUuidOrExportAsset(UnityEngine.Object asset)
 		{
+			if (!asset)
+			{
+				return string.Empty;
+			}
 			var uuid = GetMappedAssetUuid(asset);
 			if (!string.IsNullOrEmpty(uuid)) return uuid;
 			
