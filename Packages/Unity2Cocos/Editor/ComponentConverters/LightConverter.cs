@@ -107,7 +107,7 @@ namespace cc
 	{
 		public float _luminanceHDR;
 		public float _luminance;
-		public float _luminanceLDR = 498.3970260184439f; // fixed value
+		public float _luminanceLDR;
 		public int _term = 1;
 		public float _range;
 
@@ -116,6 +116,8 @@ namespace cc
 			// Cocos luminance is in nits (cd/m^2), Unity intensity is a relative value.
 			_luminance = _luminanceHDR =
 				unityLight.intensity * ExportSetting.Instance.Advanced.IntensityToLightLuminance;
+			// Cocos: LDR = HDR * standardExposureValue (1/38400) * standardLightMeterScale (10000)
+			_luminanceLDR = _luminanceHDR * (10000f / 38400f);
 			_range = unityLight.range;
 		}
 	}

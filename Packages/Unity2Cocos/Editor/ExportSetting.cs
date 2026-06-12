@@ -45,8 +45,8 @@ namespace Unity2Cocos
 			public float IntensityToLightIlluminance = 38400;
 
 			[Tooltip("Unity light intensity to Cocos luminance. (Point/Spot)\n" +
-			         "Cocos default point light luminance is about 1900 (= 1700lm).")]
-			public float IntensityToLightLuminance = 1900;
+			         "Matches Unity's falloff brightness under the Cocos standard camera exposure.")]
+			public float IntensityToLightLuminance = 20;
 			
 			[Tooltip("Ground is too dark, to use Equator.")]
 			public bool IsAmbientGroundUseEquator = true;
