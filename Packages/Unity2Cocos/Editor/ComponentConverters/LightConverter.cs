@@ -35,9 +35,11 @@ namespace cc
 			_shadowNormalBias = unityLight.shadowNormalBias;
 			_shadowSaturation = unityLight.shadowStrength;
 			
-			if (additionalData && unityLight.shadows == LightShadows.Soft)
+			if (unityLight.shadows == LightShadows.Soft)
 			{
-				if (additionalData.softShadowQuality == SoftShadowQuality.UsePipelineSettings)
+				var softShadowQuality = additionalData ?
+					additionalData.softShadowQuality : SoftShadowQuality.UsePipelineSettings;
+				if (softShadowQuality == SoftShadowQuality.UsePipelineSettings)
 				{
 					var pipelineAsset = Utils.GetURPAsset();
 					if (pipelineAsset)
@@ -45,10 +47,15 @@ namespace cc
 						var so = new SerializedObject(pipelineAsset);
 						_shadowPcf = so.FindProperty("m_SoftShadowQuality").intValue;
 					}
+					else
+					{
+						// Built-in Render Pipeline has no soft shadow quality setting, use SOFT.
+						_shadowPcf = 1;
+					}
 				}
 				else
 				{
-					_shadowPcf = (int)additionalData.softShadowQuality;
+					_shadowPcf = (int)softShadowQuality;
 				}
 			}
 
@@ -87,6 +94,12 @@ namespace cc
 				_csmLevel = pipelineAsset.shadowCascadeCount > 1 ? 4 : 1;
 				/* NOTE: CascadeShadowMap parameters are different from Unity, default values are used. */
 			}
+			else
+			{
+				// Built-in Render Pipeline fallback.
+				_shadowDistance = QualitySettings.shadowDistance;
+				_csmLevel = QualitySettings.shadowCascades > 1 ? 4 : 1;
+			}
 		}
 	}
 	
@@ -100,7 +113,9 @@ namespace cc
 
 		public PointLight(Light unityLight, int currentId) : base(unityLight, currentId)
 		{
-			_luminance = _luminanceHDR = unityLight.intensity;
+			// Cocos luminance is in nits (cd/m^2), Unity intensity is a relative value.
+			_luminance = _luminanceHDR =
+				unityLight.intensity * ExportSetting.Instance.Advanced.IntensityToLightLuminance;
 			_range = unityLight.range;
 		}
 	}

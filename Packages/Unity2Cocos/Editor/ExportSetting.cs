@@ -41,8 +41,12 @@ namespace Unity2Cocos
 			[Tooltip("Cocos doesn't apply HDR to the brightness of lights, so lower the Bloom threshold.")]
 			public float BloomThresholdOffset = -0.1f;
 
-			[Tooltip("Unity light intensity to Cocos illuminance.")]
+			[Tooltip("Unity light intensity to Cocos illuminance. (Directional)")]
 			public float IntensityToLightIlluminance = 38400;
+
+			[Tooltip("Unity light intensity to Cocos luminance. (Point/Spot)\n" +
+			         "Cocos default point light luminance is about 1900 (= 1700lm).")]
+			public float IntensityToLightLuminance = 1900;
 			
 			[Tooltip("Ground is too dark, to use Equator.")]
 			public bool IsAmbientGroundUseEquator = true;

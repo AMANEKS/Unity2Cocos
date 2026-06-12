@@ -214,6 +214,24 @@ namespace Unity2Cocos
 				};
 				shadowsInfo._distance = urpAsset.shadowDistance;
 			}
+			else
+			{
+				// Built-in Render Pipeline fallback. (QualitySettings & scene lights)
+				shadowsInfo._enabled = QualitySettings.shadows != UnityEngine.ShadowQuality.Disable &&
+					UnityEngine.Object.FindObjectsOfType<Light>().Any(x =>
+						x.enabled && x.shadows != LightShadows.None);
+				shadowsInfo._maxReceived = Mathf.Max(QualitySettings.pixelLightCount, 1);
+				var shadowResolution = QualitySettings.shadowResolution switch
+				{
+					UnityEngine.ShadowResolution.Low => 512,
+					UnityEngine.ShadowResolution.Medium => 1024,
+					UnityEngine.ShadowResolution.High => 2048,
+					UnityEngine.ShadowResolution.VeryHigh => 2048,
+					_ => 1024
+				};
+				shadowsInfo._size = new Vec2 { x = shadowResolution, y = shadowResolution };
+				shadowsInfo._distance = QualitySettings.shadowDistance;
+			}
 			sceneGlobals.shadows = new SceneNodeId(ccAsset.Count);
 			ccAsset.Add(shadowsInfo);
 			
