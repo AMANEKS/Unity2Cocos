@@ -2,7 +2,6 @@ using System;
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
-using UnityEngine.Rendering.Universal;
 
 namespace Unity2Cocos
 {
@@ -19,37 +18,16 @@ namespace Unity2Cocos
 		
 		[Tooltip("Replace scripts referenced in Unity with scripts on the Cocos side.")]
 		public List<ScriptMapper> ScriptMappers = new();
-		
-		[Tooltip("Converts directory paths to web-like.")]
-		public bool ExportWebLikePaths = true;
-		
-		[Tooltip("If not specified, the currently used Asset is adopted.")]
-		public UniversalRenderPipelineAsset URPAsset = null;
-		
-		[Tooltip("Ambient light of Unity and Cocos is very different, turn ON if you want to use the Cocos defaults.")]
-		public bool UseCocosAmbientLightInfo = false;
 
 		[Serializable]
 		public class AdvancedSettings
 		{
-			[Tooltip("Convert from the left-hand coordinate system to the right-hand coordinate system.")]
-			public bool ConvertToRightHanded = true;
-
-			[Tooltip("Default Unity's aniso = 2, Cocos = 0")] [Range(-2, 0)]
-			public int TextureAnisoLevelShift = -2;
-
-			[Tooltip("Cocos doesn't apply HDR to the brightness of lights, so lower the Bloom threshold.")]
-			public float BloomThresholdOffset = -0.1f;
-
 			[Tooltip("Unity light intensity to Cocos illuminance. (Directional)")]
 			public float IntensityToLightIlluminance = 38400;
 
 			[Tooltip("Unity light intensity to Cocos luminance. (Point/Spot)\n" +
 			         "Matches Unity's falloff brightness under the Cocos standard camera exposure.")]
 			public float IntensityToLightLuminance = 10;
-			
-			[Tooltip("Ground is too dark, to use Equator.")]
-			public bool IsAmbientGroundUseEquator = true;
 		}
 
 		public AdvancedSettings Advanced;

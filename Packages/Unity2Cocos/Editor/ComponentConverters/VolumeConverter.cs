@@ -64,9 +64,11 @@ namespace Unity2Cocos
 
 			if (profile.TryGet<UnityEngine.Rendering.Universal.Bloom>(out var bloom))
 			{
+				// NOTE: Cocos doesn't apply HDR to the brightness of lights, so lower the Bloom threshold.
+				const float bloomThresholdOffset = -0.1f;
 				list.Add(new cc.Bloom
 				{
-					_threshold = bloom.threshold.value + ExportSetting.Instance.Advanced.BloomThresholdOffset,
+					_threshold = bloom.threshold.value + bloomThresholdOffset,
 					_intensity = bloom.intensity.value
 				});
 			}

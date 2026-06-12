@@ -57,8 +57,6 @@ namespace Unity2Cocos
 			}
 		}
 		
-		private static bool IsRightHanded => ExportSetting.Instance.Advanced.ConvertToRightHanded;
-
 		public static void ConvertHierarchy(Transform root, List<CCType> list)
 		{
 			ConvertTransformAndChildren(1, root, list);
@@ -150,7 +148,7 @@ namespace Unity2Cocos
 		private static Node CreateMeshCorrectionNode(Transform t, UnityEngine.MeshFilter meshFilter, int parentId)
 		{
 			var p = -GetMeshDefaultPosition(meshFilter);
-			var r = IsRightHanded ? Quaternion.AngleAxis(180f, Vector3.up) : Quaternion.identity;
+			var r = Quaternion.AngleAxis(180f, Vector3.up);
 			return new Node
 			{
 				_name = $"{t.name} (Mesh)",
@@ -172,10 +170,7 @@ namespace Unity2Cocos
 			if (applyMeshCorrection && t.TryGetComponent<UnityEngine.MeshFilter>(out var meshFilter) && meshFilter.sharedMesh)
 			{
 				p -= GetMeshDefaultPosition(meshFilter);
-				if (IsRightHanded)
-				{
-					r *= Quaternion.AngleAxis(180f, Vector3.up);
-				}
+				r *= Quaternion.AngleAxis(180f, Vector3.up);
 			}
 
 			if (t.TryGetComponent<UnityEngine.ReflectionProbe>(out var reflectionProbe))

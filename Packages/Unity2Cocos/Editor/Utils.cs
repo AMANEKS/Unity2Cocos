@@ -44,12 +44,8 @@ namespace Unity2Cocos
 			return attributes[0];
 		}
 
-		public static bool ConvertPathFormat => ExportSetting.Instance.ExportWebLikePaths;
-		
 		public static string ConvertToOutputPathFormat(string input)
 		{
-			if (!ConvertPathFormat) return input;
-
 #if UNITY_EDITOR_WIN
 			var paths = input.Split('\\');
 #else
@@ -143,11 +139,10 @@ namespace Unity2Cocos
 			return string.Concat(names.Select((s, i) => s + (i == names.Count - 1 ? "" : "/")));
 		}
 
-		public static bool IsRightHanded => ExportSetting.Instance.Advanced.ConvertToRightHanded;
-		
+		// Convert from the left-hand coordinate system to the right-hand coordinate system.
 		public static Vector3 RightHanded(this Vector3 v)
 		{
-			return IsRightHanded ? new Vector3(v.x, v.y, -v.z) : v;
+			return new Vector3(v.x, v.y, -v.z);
 		}
 		
 		public static Vec3 Vector3ToVec3(Vector3 v)
@@ -157,7 +152,7 @@ namespace Unity2Cocos
 		
 		public static Quaternion RightHanded(this Quaternion q)
 		{
-			return IsRightHanded ? new Quaternion(-q.x, -q.y, q.z, q.w) : q;
+			return new Quaternion(-q.x, -q.y, q.z, q.w);
 		}
 		
 		public static Quat QuaternionToQuat(Quaternion q)
@@ -227,8 +222,9 @@ namespace Unity2Cocos
 		
 		public static int TextureAnisoToCocos(int anisoLevel)
 		{
-			var shift = ExportSetting.Instance.Advanced.TextureAnisoLevelShift;
-			return Mathf.Max(anisoLevel + shift, 0);
+			// Default Unity's aniso = 2, Cocos = 0
+			const int anisoLevelShift = -2;
+			return Mathf.Max(anisoLevel + anisoLevelShift, 0);
 		}
 		
 		public static int CameraClearFlagsToCocos(CameraClearFlags flags)
@@ -263,7 +259,7 @@ namespace Unity2Cocos
 
 		public static UniversalRenderPipelineAsset GetURPAsset()
 		{
-			return ExportSetting.Instance.URPAsset ? ExportSetting.Instance.URPAsset : UniversalRenderPipeline.asset;
+			return UniversalRenderPipeline.asset;
 		}
 
 		private static readonly Dictionary<int, int> _blendModeMap = new()

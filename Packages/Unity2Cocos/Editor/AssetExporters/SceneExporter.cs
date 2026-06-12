@@ -183,17 +183,16 @@ namespace Unity2Cocos
 			ccAsset.Add(sceneGlobals);
 
 			var ambientInfo = new AmbientInfo();
-			if (!ExportSetting.Instance.UseCocosAmbientLightInfo)
 			{
 				var ambientIntensity = RenderSettings.ambientIntensity;
 				var skyColor = Utils.Color32ToVec4(RenderSettings.ambientSkyColor);
 				skyColor.w = ambientIntensity;
 				ambientInfo._skyColorHDR = ambientInfo._skyColor = skyColor;
-				var groundColor = Utils.Color32ToVec4(ExportSetting.Instance.Advanced.IsAmbientGroundUseEquator ?
-					RenderSettings.ambientEquatorColor : RenderSettings.ambientGroundColor);
+				// NOTE: Unity's ground color is too dark for Cocos, use the equator color.
+				var groundColor = Utils.Color32ToVec4(RenderSettings.ambientEquatorColor);
 				ambientInfo._groundAlbedoHDR = ambientInfo._groundAlbedo = ambientInfo._groundAlbedoLDR = groundColor;
 				ambientInfo._skyIllumLDR = ambientIntensity;
-				ambientInfo._skyIllumHDR = ambientInfo._skyIllum = 
+				ambientInfo._skyIllumHDR = ambientInfo._skyIllum =
 					ambientInfo._skyIllumLDR * ExportSetting.Instance.Advanced.IntensityToLightIlluminance;
 			}
 			sceneGlobals.ambient = new SceneNodeId(ccAsset.Count);
