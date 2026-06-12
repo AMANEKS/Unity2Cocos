@@ -166,9 +166,14 @@ namespace Unity2Cocos
 			}
 			if (list.Count > 0)
 			{
+				// NOTE: Cocos excludes baked lights from realtime lighting.
+				// A Unity scene without baked lighting data is lit in realtime,
+				// so export such lights as realtime.
+				var isBaked = component.lightmapBakeType == LightmapBakeType.Baked &&
+				              Lightmapping.lightingDataAsset != null;
 				list.Add(new StaticLightSettings
 				{
-					_baked = component.lightmapBakeType == LightmapBakeType.Baked,
+					_baked = isBaked,
 					_castShadow = component.shadows != LightShadows.None
 				});
 			}
