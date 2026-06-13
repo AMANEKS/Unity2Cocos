@@ -168,13 +168,23 @@ namespace Unity2Cocos
 			
 			// Node & Components
 			EditorSceneManager.OpenScene(Info.UnityAssetPath);
-			var rootGameObjects = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
-			foreach (var root in rootGameObjects)
+			// Terrain trees have no Cocos equivalent; spawn them as temporary GameObjects so the
+			// normal hierarchy conversion exports them as regular nodes. (Scene is never saved.)
+			var spawnedTrees = TerrainTreeInstancer.Spawn();
+			try
 			{
-				ccScene._children.Add(new SceneNodeId(ccAsset.Count));
-				Converter.ConvertHierarchy(root.transform, ccAsset);
+				var rootGameObjects = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
+				foreach (var root in rootGameObjects)
+				{
+					ccScene._children.Add(new SceneNodeId(ccAsset.Count));
+					Converter.ConvertHierarchy(root.transform, ccAsset);
+				}
+				Converter.ApplySceneNodeIdReplaceable();
 			}
-			Converter.ApplySceneNodeIdReplaceable();
+			finally
+			{
+				TerrainTreeInstancer.Despawn(spawnedTrees);
+			}
 			
 			// Scene Globals
 			var urpAsset = Utils.GetURPAsset();
