@@ -123,10 +123,14 @@ namespace Unity2Cocos
 			subMeta.userData = subUserData;
 			subMetas.Add(subAssetUuid, subMeta);
 			ccMeta.subMetas = subMetas;
-			
+
+			// Unity can generate an alpha channel from grayscale on import. (Used by alpha-test decals etc.)
+			// Cocos has no equivalent, so bake the alpha into the exported PNG.
+			var generateGrayscaleAlpha = importer.alphaSource == TextureImporterAlphaSource.FromGrayScale;
+
 			ccMeta.userData = new Meta.UserData()
 			{
-				hasAlpha = importer.DoesSourceTextureHaveAlpha(),
+				hasAlpha = generateGrayscaleAlpha || importer.DoesSourceTextureHaveAlpha(),
 				type = importer.textureType switch
 				{
 					TextureImporterType.NormalMap => "normal map",
@@ -136,11 +140,54 @@ namespace Unity2Cocos
 				},
 				redirect = fullUuid
 			};
-			
-			ExportAssetCopy();
+
+			if (!(generateGrayscaleAlpha && TryExportGrayscaleAlphaTexture(Info.UnityAssetPath, Info.CocosAssetOutputPath)))
+			{
+				ExportAssetCopy();
+			}
 			ExportMeta(ccMeta);
-			
+
 			return fullUuid;
+		}
+
+		/// <summary>
+		/// Reproduces Unity's "Alpha Source = From Grayscale" by writing the source RGB luminance
+		/// into the alpha channel of the exported PNG.
+		/// </summary>
+		private static bool TryExportGrayscaleAlphaTexture(string srcPath, string dstPath)
+		{
+			try
+			{
+				var bytes = File.ReadAllBytes(srcPath);
+				var tex = new UnityEngine.Texture2D(2, 2);
+				if (!tex.LoadImage(bytes))
+				{
+					UnityEngine.Object.DestroyImmediate(tex);
+					return false;
+				}
+
+				var pixels = tex.GetPixels32();
+				for (var i = 0; i < pixels.Length; ++i)
+				{
+					var c = pixels[i];
+					// Unity uses luminance for grayscale. (same weights as Color.grayscale)
+					c.a = (byte)Mathf.Clamp(
+						Mathf.RoundToInt(c.r * 0.299f + c.g * 0.587f + c.b * 0.114f), 0, 255);
+					pixels[i] = c;
+				}
+				tex.SetPixels32(pixels);
+				tex.Apply();
+
+				Directory.CreateDirectory(Path.GetDirectoryName(dstPath)!);
+				File.WriteAllBytes(dstPath, tex.EncodeToPNG());
+				UnityEngine.Object.DestroyImmediate(tex);
+				return true;
+			}
+			catch (System.Exception e)
+			{
+				Debug.LogError($"[Texture2DExporter] Failed to generate grayscale alpha. -> {srcPath}\n{e}");
+				return false;
+			}
 		}
 
 		public static string ExportPBRMap(Texture2D tex, string srcPath)
