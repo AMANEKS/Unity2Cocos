@@ -18,7 +18,6 @@ namespace Unity2Cocos
 		private static readonly int DstBlend = Shader.PropertyToID("_DstBlend");
 		private static readonly int SrcBlendAlpha = Shader.PropertyToID("_SrcBlendAlpha");
 		private static readonly int DstBlendAlpha = Shader.PropertyToID("_DstBlendAlpha");
-		private static readonly int QueueOffset = Shader.PropertyToID("_QueueOffset");
 		
 		public static void BuildCocosMaterial(
 			UnityEngine.Material urpMat,
@@ -84,10 +83,15 @@ namespace Unity2Cocos
 				}
 			}
 			
-			// Render Queue
-			if (urpMat.HasInt(QueueOffset) && urpMat.GetInt(QueueOffset) != 0)
+			// Render Queue -> Priority
+			// Cocos default priority (128) corresponds to Unity's Geometry queue (2000), and a higher
+			// priority renders later. Converting Unity's render queue keeps the relative draw order,
+			// which prevents z-fighting between coplanar overlapping objects (e.g. ground decals at
+			// the AlphaTest queue 2450 rendering after the opaque ground at 2000).
+			if (urpMat.renderQueue >= 0)
 			{
-				state.priority += urpMat.GetInt(QueueOffset);
+				var priorityOffset = urpMat.renderQueue - (int)UnityEngine.Rendering.RenderQueue.Geometry;
+				state.priority = Mathf.Clamp(state.priority + priorityOffset, 0, 255);
 			}
 		}
 
