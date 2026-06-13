@@ -235,11 +235,24 @@ namespace Unity2Cocos
 			ccAsset.Add(shadowsInfo);
 			
 			var skyBoxInfo = new SkyboxInfo();
-			var sunSource = RenderSettings.sun ? RenderSettings.sun : 
+			var sunSource = RenderSettings.sun ? RenderSettings.sun :
 				UnityEngine.Object.FindObjectsOfType<Light>().FirstOrDefault(x => x.type == LightType.Directional);
 			if (sunSource)
 			{
 				skyBoxInfo._rotationAngle = sunSource.transform.rotation.RightHanded().eulerAngles.y;
+			}
+			// Convert the scene's skybox to a Cocos cubemap. (Falls back to the Cocos default on failure.)
+			if (RenderSettings.skybox)
+			{
+				var envmapUuid = SkyboxExporter.Export(RenderSettings.skybox, Info.OutputFolderPath);
+				if (!string.IsNullOrEmpty(envmapUuid))
+				{
+					var envmap = new AssetReference(envmapUuid) { __expectedType__ = "cc.TextureCube" };
+					skyBoxInfo._envmapHDR = envmap;
+					skyBoxInfo._envmap = envmap;
+					skyBoxInfo._envmapLDR = envmap;
+					skyBoxInfo._useHDR = false;
+				}
 			}
 			sceneGlobals._skybox = new SceneNodeId(ccAsset.Count);
 			ccAsset.Add(skyBoxInfo);
