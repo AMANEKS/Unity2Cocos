@@ -28,7 +28,7 @@ namespace Unity2Cocos
 			}
 		}
 
-		public static string Export(AssetExporter.ExportInfo info, Object source)
+		public static string Export(AssetExporter.ExportInfo info, UnityEngine.Object source)
 		{
 			var ccMeta = new Meta();
 			ccMeta.userData = new Meta.UserData();
