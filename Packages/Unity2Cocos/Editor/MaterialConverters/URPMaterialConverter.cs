@@ -29,29 +29,38 @@ namespace Unity2Cocos
 			var prop = ccMat._props[0];
 			
 			// Texture
-			var hasMainTexture = urpMat.HasTexture(BaseMap) || urpMat.HasTexture(MainTex);
-			if (hasMainTexture)
+			// NOTE: Material.mainTexture/color resolve via [MainTexture]/[MainColor] tags and fall back to
+			// _MainTex/_Color, which warns on custom shaders that only have _BaseMap/_BaseColor.
+			// Read explicitly from whichever property exists.
+			var hasBaseMap = urpMat.HasTexture(BaseMap);
+			if (hasBaseMap || urpMat.HasTexture(MainTex))
 			{
-				var mainTexture = urpMat.mainTexture;
+				var mainTexProp = hasBaseMap ? BaseMap : MainTex;
+				var mainTexture = urpMat.GetTexture(mainTexProp);
 				if (mainTexture)
 				{
 					define.Add(cocosTextureUseKeyword, true);
 					prop.Add("mainTexture", new AssetReference<cc.Texture2D>(Exporter.GetUuidOrExportAsset(mainTexture)));
 				}
+				var scale = urpMat.GetTextureScale(mainTexProp);
+				var offset = urpMat.GetTextureOffset(mainTexProp);
 				prop.Add("tilingOffset", new Vec4()
 				{
-					x = urpMat.mainTextureScale.x,
-					y = urpMat.mainTextureScale.y,
-					z = urpMat.mainTextureOffset.x,
-					w = urpMat.mainTextureOffset.y
+					x = scale.x,
+					y = scale.y,
+					z = offset.x,
+					w = offset.y
 				});
 			}
-			
+
 			// Color
-			var hasColor = urpMat.HasColor(BaseColor) || urpMat.HasColor(Color);
-			if (hasColor)
+			if (urpMat.HasColor(BaseColor))
 			{
-				prop.Add("mainColor", Utils.Color32ToCocosColor(urpMat.color));
+				prop.Add("mainColor", Utils.Color32ToCocosColor(urpMat.GetColor(BaseColor)));
+			}
+			else if (urpMat.HasColor(Color))
+			{
+				prop.Add("mainColor", Utils.Color32ToCocosColor(urpMat.GetColor(Color)));
 			}
 			
 			// Alpha Test
