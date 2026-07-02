@@ -46,8 +46,8 @@ namespace Unity2Cocos
 			[Range(0.05f, 1f)]
 			public float TerrainGrassDensity = 1f;
 
-			[Tooltip("Excludes small terrain vegetation placed farther than this distance " +
-			         "from the scene camera. (0 = unlimited)")]
+			[Tooltip("Excludes small terrain vegetation that is out of this range from " +
+			         "every enabled camera in the scene. (0 = unlimited)")]
 			public float TerrainGrassMaxDistance = 0;
 		}
 

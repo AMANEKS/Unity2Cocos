@@ -33,8 +33,12 @@ namespace cc
 			// TODO: Support culling mask.
 			_visibility = 1 << Utils.LayerConvert(0);
 			_shadowEnabled = unityLight.shadows != LightShadows.None;
-			_shadowBias = unityLight.shadowBias;
-			_shadowNormalBias = unityLight.shadowNormalBias;
+			// NOTE: Unity's shadow bias uses a completely different unit scale from Cocos
+			// (Cocos defaults: bias 0.00001 / normalBias 0). Copying Unity's values (~0.05-0.5)
+			// offsets the depth comparison so far that shadows disappear entirely,
+			// so always use the Cocos defaults.
+			_shadowBias = 0.00001f;
+			_shadowNormalBias = 0f;
 			_shadowSaturation = unityLight.shadowStrength;
 			
 			if (unityLight.shadows == LightShadows.Soft)

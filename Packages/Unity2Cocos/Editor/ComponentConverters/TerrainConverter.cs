@@ -359,16 +359,28 @@ namespace Unity2Cocos
 		{
 			var density = Mathf.Clamp01(ExportSetting.Instance.Advanced.TerrainGrassDensity);
 			var maxDistance = ExportSetting.Instance.Advanced.TerrainGrassMaxDistance;
-			var viewPos = Vector3.zero;
+			// Grass is kept if it is within range of ANY enabled camera.
+			// (Demo scenes often contain multiple view-point cameras.)
+			var viewPositions = new List<Vector3>();
 			if (maxDistance > 0)
 			{
-				var camera = UnityEngine.Camera.main;
-				if (!camera)
+				foreach (var camera in UnityEngine.Object.FindObjectsOfType<UnityEngine.Camera>())
 				{
-					camera = UnityEngine.Object.FindObjectsOfType<UnityEngine.Camera>()
-						.FirstOrDefault(x => x.enabled);
+					if (camera.enabled)
+					{
+						viewPositions.Add(camera.transform.position);
+					}
 				}
-				viewPos = camera ? camera.transform.position : Vector3.zero;
+				if (viewPositions.Count == 0)
+				{
+					Debug.LogWarning(
+						"[TerrainTreeInstancer] No enabled camera found. Terrain Grass Max Distance is ignored.");
+				}
+				else
+				{
+					Debug.Log(
+						$"[TerrainTreeInstancer] Terrain Grass Max Distance is measured from {viewPositions.Count} camera(s).");
+				}
 			}
 
 			var total = 0;
@@ -428,10 +440,22 @@ namespace Unity2Cocos
 					var worldPos = basePos + Vector3.Scale(inst.position, size);
 					if (isGrass[inst.prototypeIndex])
 					{
-						if (maxDistance > 0 && Vector3.Distance(worldPos, viewPos) > maxDistance)
+						if (viewPositions.Count > 0)
 						{
-							skipped++;
-							continue;
+							var inRange = false;
+							foreach (var viewPos in viewPositions)
+							{
+								if (Vector3.Distance(worldPos, viewPos) <= maxDistance)
+								{
+									inRange = true;
+									break;
+								}
+							}
+							if (!inRange)
+							{
+								skipped++;
+								continue;
+							}
 						}
 						if (density < 1f)
 						{
