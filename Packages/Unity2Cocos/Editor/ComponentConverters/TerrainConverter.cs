@@ -362,10 +362,11 @@ namespace Unity2Cocos
 			var viewPos = Vector3.zero;
 			if (maxDistance > 0)
 			{
-				var camera = Camera.main;
+				var camera = UnityEngine.Camera.main;
 				if (!camera)
 				{
-					camera = UnityEngine.Object.FindObjectsOfType<Camera>().FirstOrDefault(x => x.enabled);
+					camera = UnityEngine.Object.FindObjectsOfType<UnityEngine.Camera>()
+						.FirstOrDefault(x => x.enabled);
 				}
 				viewPos = camera ? camera.transform.position : Vector3.zero;
 			}
