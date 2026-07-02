@@ -36,6 +36,19 @@ namespace Unity2Cocos
 			[Tooltip("Overrides the shadow distance. (0 = use Unity's URP asset / QualitySettings value)\n" +
 			         "Smaller values sharpen the shadows near the camera.")]
 			public float ShadowDistance = 0;
+
+			[Tooltip("Enable octree scene culling sized automatically from the scene bounds.\n" +
+			         "Greatly speeds up culling for scenes with many objects.")]
+			public bool EnableOctree = true;
+
+			[Tooltip("Density of small terrain vegetation (up to 2m tall, e.g. grass).\n" +
+			         "0.5 = half, 0.25 = quarter. Reduces the node count at the cost of appearance.")]
+			[Range(0.05f, 1f)]
+			public float TerrainGrassDensity = 1f;
+
+			[Tooltip("Excludes small terrain vegetation placed farther than this distance " +
+			         "from the scene camera. (0 = unlimited)")]
+			public float TerrainGrassMaxDistance = 0;
 		}
 
 		public AdvancedSettings Advanced;

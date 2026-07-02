@@ -352,8 +352,26 @@ namespace Unity2Cocos
 	/// </summary>
 	public static class TerrainTreeInstancer
 	{
+		// Prototypes up to this height are treated as "grass" for density / distance options.
+		private const float GrassHeightThreshold = 2f;
+
 		public static List<GameObject> Spawn()
 		{
+			var density = Mathf.Clamp01(ExportSetting.Instance.Advanced.TerrainGrassDensity);
+			var maxDistance = ExportSetting.Instance.Advanced.TerrainGrassMaxDistance;
+			var viewPos = Vector3.zero;
+			if (maxDistance > 0)
+			{
+				var camera = Camera.main;
+				if (!camera)
+				{
+					camera = UnityEngine.Object.FindObjectsOfType<Camera>().FirstOrDefault(x => x.enabled);
+				}
+				viewPos = camera ? camera.transform.position : Vector3.zero;
+			}
+
+			var total = 0;
+			var skipped = 0;
 			var spawned = new List<GameObject>();
 			foreach (var terrain in UnityEngine.Object.FindObjectsOfType<UnityEngine.Terrain>())
 			{
@@ -383,6 +401,14 @@ namespace Unity2Cocos
 						}
 					}
 				}
+
+				var isGrass = new bool[prototypes.Length];
+				for (var i = 0; i < prototypes.Length; ++i)
+				{
+					isGrass[i] = prototypes[i].prefab && IsGrassLikePrototype(prototypes[i].prefab);
+				}
+				var densityAccumulators = new float[prototypes.Length];
+
 				var size = data.size;
 				var basePos = terrain.transform.position;
 				foreach (var inst in data.treeInstances)
@@ -396,11 +422,32 @@ namespace Unity2Cocos
 					{
 						continue;
 					}
+					total++;
+
+					var worldPos = basePos + Vector3.Scale(inst.position, size);
+					if (isGrass[inst.prototypeIndex])
+					{
+						if (maxDistance > 0 && Vector3.Distance(worldPos, viewPos) > maxDistance)
+						{
+							skipped++;
+							continue;
+						}
+						if (density < 1f)
+						{
+							densityAccumulators[inst.prototypeIndex] += density;
+							if (densityAccumulators[inst.prototypeIndex] < 1f)
+							{
+								skipped++;
+								continue;
+							}
+							densityAccumulators[inst.prototypeIndex] -= 1f;
+						}
+					}
+
 					var go = UnityEngine.Object.Instantiate(prefab);
 					go.name = prefab.name;
 					go.transform.SetParent(terrain.transform, true);
-					go.transform.position = basePos + new Vector3(
-						inst.position.x * size.x, inst.position.y * size.y, inst.position.z * size.z);
+					go.transform.position = worldPos;
 					// Compose with the prefab root's own rotation / scale, not replace them.
 					go.transform.rotation =
 						Quaternion.AngleAxis(inst.rotation * Mathf.Rad2Deg, Vector3.up) * prefab.transform.rotation;
@@ -409,7 +456,32 @@ namespace Unity2Cocos
 					spawned.Add(go);
 				}
 			}
+			if (skipped > 0)
+			{
+				Debug.Log($"[TerrainTreeInstancer] Skipped {skipped}/{total} instances by " +
+				          $"grass density ({ExportSetting.Instance.Advanced.TerrainGrassDensity}) / " +
+				          $"max distance ({ExportSetting.Instance.Advanced.TerrainGrassMaxDistance}).");
+			}
 			return spawned;
+		}
+
+		/// <summary>
+		/// Small vegetation check based on the mesh height of the prototype prefab.
+		/// </summary>
+		private static bool IsGrassLikePrototype(GameObject prefab)
+		{
+			var maxHeight = 0f;
+			foreach (var meshFilter in prefab.GetComponentsInChildren<MeshFilter>(true))
+			{
+				if (!meshFilter.sharedMesh)
+				{
+					continue;
+				}
+				maxHeight = Mathf.Max(
+					maxHeight,
+					meshFilter.sharedMesh.bounds.size.y * Mathf.Abs(meshFilter.transform.lossyScale.y));
+			}
+			return maxHeight > 0f && maxHeight <= GrassHeightThreshold;
 		}
 
 		public static void Despawn(List<GameObject> spawned)

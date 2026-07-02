@@ -300,8 +300,61 @@ namespace Unity2Cocos
 			sceneGlobals.fog = new SceneNodeId(ccAsset.Count);
 			ccAsset.Add(fogInfo);
 			
+			var octreeInfo = new OctreeInfo();
+			if (ExportSetting.Instance.Advanced.EnableOctree)
+			{
+				// Compute the scene bounds from renderers and terrains.
+				// Octree culling avoids a linear scan over all models every frame.
+				var bounds = new Bounds();
+				var hasBounds = false;
+				foreach (var renderer in UnityEngine.Object.FindObjectsOfType<Renderer>())
+				{
+					if (!renderer.enabled)
+					{
+						continue;
+					}
+					if (hasBounds)
+					{
+						bounds.Encapsulate(renderer.bounds);
+					}
+					else
+					{
+						bounds = renderer.bounds;
+						hasBounds = true;
+					}
+				}
+				foreach (var sceneTerrain in UnityEngine.Object.FindObjectsOfType<UnityEngine.Terrain>())
+				{
+					if (!sceneTerrain.terrainData)
+					{
+						continue;
+					}
+					var terrainBounds = new Bounds(
+						sceneTerrain.transform.position + sceneTerrain.terrainData.size * 0.5f,
+						sceneTerrain.terrainData.size);
+					if (hasBounds)
+					{
+						bounds.Encapsulate(terrainBounds);
+					}
+					else
+					{
+						bounds = terrainBounds;
+						hasBounds = true;
+					}
+				}
+
+				octreeInfo._enabled = true;
+				if (hasBounds)
+				{
+					// Expand slightly so that boundary objects are safely contained.
+					bounds.Expand(bounds.size * 0.05f + Vector3.one * 2f);
+					// Convert to the right-handed (z flipped) coordinate system.
+					octreeInfo._minPos = new Vec3 { x = bounds.min.x, y = bounds.min.y, z = -bounds.max.z };
+					octreeInfo._maxPos = new Vec3 { x = bounds.max.x, y = bounds.max.y, z = -bounds.min.z };
+				}
+			}
 			sceneGlobals.octree = new SceneNodeId(ccAsset.Count);
-			ccAsset.Add(new OctreeInfo());
+			ccAsset.Add(octreeInfo);
 			
 			sceneGlobals.skin = new SceneNodeId(ccAsset.Count);
 			ccAsset.Add(new SkinInfo());
