@@ -80,10 +80,11 @@ namespace Unity2Cocos
 				startSizeY = ParticleData.Curve(main.startSizeY),
 				startSizeZ = ParticleData.Curve(main.startSizeZ),
 				startRotation3D = main.startRotation3D,
-				startRotationX = ParticleData.Curve(main.startRotationX, Mathf.Rad2Deg),
-				startRotationY = ParticleData.Curve(main.startRotationY, Mathf.Rad2Deg),
+				// NOTE: Both Unity and Cocos handle particle rotation in radians.
+				startRotationX = ParticleData.Curve(main.startRotationX),
+				startRotationY = ParticleData.Curve(main.startRotationY),
 				startRotationZ = ParticleData.Curve(
-					main.startRotation3D ? main.startRotationZ : main.startRotation, Mathf.Rad2Deg),
+					main.startRotation3D ? main.startRotationZ : main.startRotation),
 				rateOverTime = ParticleData.Curve(emission.rateOverTime),
 				rateOverDistance = ParticleData.Curve(emission.rateOverDistance),
 			};
@@ -174,12 +175,13 @@ namespace Unity2Cocos
 					{ "__type__", "cc.RotationOvertimeModule" },
 					{ "_enable", rot.enabled },
 					{ "_separateAxes", rot.separateAxes },
-					{ "z", ParticleData.Curve(rot.z, Mathf.Rad2Deg) },
+					// NOTE: Both Unity and Cocos handle particle rotation in radians.
+					{ "z", ParticleData.Curve(rot.z) },
 				};
 				if (rot.separateAxes)
 				{
-					module.Add("x", ParticleData.Curve(rot.x, Mathf.Rad2Deg));
-					module.Add("y", ParticleData.Curve(rot.y, Mathf.Rad2Deg));
+					module.Add("x", ParticleData.Curve(rot.x));
+					module.Add("y", ParticleData.Curve(rot.y));
 				}
 				ccPs._rotationOvertimeModule = module;
 			}
