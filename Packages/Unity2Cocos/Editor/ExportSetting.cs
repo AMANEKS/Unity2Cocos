@@ -28,6 +28,10 @@ namespace Unity2Cocos
 			[Tooltip("Unity light intensity to Cocos luminance. (Point/Spot)\n" +
 			         "Matches Unity's falloff brightness under the Cocos standard camera exposure.")]
 			public float IntensityToLightLuminance = 10;
+
+			[Tooltip("Force GPU instancing (USE_INSTANCING) on materials used by terrain trees.\n" +
+			         "Reduces draw calls when a large amount of vegetation is placed on the terrain.")]
+			public bool TerrainTreeGPUInstancing = true;
 		}
 
 		public AdvancedSettings Advanced;

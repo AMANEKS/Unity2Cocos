@@ -19,6 +19,23 @@ namespace Unity2Cocos
 	{
 		public abstract Material Convert(UnityEngine.Material material);
 
+		// Materials that should be exported with GPU instancing regardless of the Unity setting.
+		// (ex. terrain tree vegetation that is instanced by Unity's terrain system)
+		private static readonly HashSet<int> _forceInstancingMaterials = new();
+
+		public static void ClearForceInstancing()
+		{
+			_forceInstancingMaterials.Clear();
+		}
+
+		public static void RegisterForceInstancing(UnityEngine.Material material)
+		{
+			if (material)
+			{
+				_forceInstancingMaterials.Add(material.GetHashCode());
+			}
+		}
+
 		public static Material CreateMaterial(UnityEngine.Material src, string effectUuid, int passCount)
 		{
 			var ccMat = new Material
@@ -46,11 +63,11 @@ namespace Unity2Cocos
 			
 			// Instancing
 			var define = ccMat._defines[0];
-			if (src.enableInstancing)
+			if (src.enableInstancing || _forceInstancingMaterials.Contains(src.GetHashCode()))
 			{
 				define.Add("USE_INSTANCING", true);
 			}
-			
+
 			return ccMat;
 		}
 	}

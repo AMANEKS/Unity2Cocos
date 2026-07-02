@@ -22,6 +22,7 @@ namespace Unity2Cocos
 			_sceneNodeIdReplaceableList.Clear();
 			_unityComponentToNodeId.Clear();
 			_meshDefaultPositions.Clear();
+			MaterialConverter.ClearForceInstancing();
 			
 			// Component Converter
 			_componentConverters.Clear();
@@ -87,6 +88,20 @@ namespace Unity2Cocos
 				list.Add(meshHostNode);
 			}
 
+			// Cocos terrain extends toward +x/+z from its node origin. With the LH -> RH conversion
+			// (z flip), Unity's terrain area [z, z + size.z] maps to [-(z + size.z), -z].
+			// Host the Terrain component on an offset child node so that scene children
+			// (e.g. spawned terrain trees) are not displaced.
+			var terrainHostNodeId = nodeId;
+			var terrainHostNode = node;
+			if (t.TryGetComponent<UnityEngine.Terrain>(out var terrainComponent) && terrainComponent.terrainData)
+			{
+				terrainHostNodeId = list.Count;
+				terrainHostNode = CreateTerrainOffsetNode(t, terrainComponent, nodeId);
+				node._children.Add(new SceneNodeId(terrainHostNodeId));
+				list.Add(terrainHostNode);
+			}
+
 			var transformPath = Utils.GetTransformPath(t);
 			var components = t.GetComponents<UnityEngine.Component>();
 			foreach (var component in components)
@@ -115,8 +130,18 @@ namespace Unity2Cocos
 					converter = _monoBehaviourConverter;
 				}
 
-				var hostNodeId = component is UnityEngine.MeshRenderer ? meshHostNodeId : nodeId;
-				var hostNode = component is UnityEngine.MeshRenderer ? meshHostNode : node;
+				var hostNodeId = nodeId;
+				var hostNode = node;
+				if (component is UnityEngine.MeshRenderer)
+				{
+					hostNodeId = meshHostNodeId;
+					hostNode = meshHostNode;
+				}
+				else if (component is UnityEngine.Terrain)
+				{
+					hostNodeId = terrainHostNodeId;
+					hostNode = terrainHostNode;
+				}
 
 				var results = converter.ConvertExecute(component, list.Count);
 				var ccTypes = results as CCType[] ?? results.ToArray();
@@ -140,6 +165,26 @@ namespace Unity2Cocos
 				node._children.Add(new SceneNodeId(list.Count));
 				ConvertTransformAndChildren(nodeId, t.GetChild(i), list);
 			}
+		}
+
+		/// <summary>
+		/// Node that hosts the Cocos Terrain component, offset by -size.z (in Cocos space) so the
+		/// terrain area matches the z-flipped scene without displacing the scene children.
+		/// </summary>
+		private static Node CreateTerrainOffsetNode(Transform t, UnityEngine.Terrain terrain, int parentId)
+		{
+			return new Node
+			{
+				_name = $"{t.name} (Terrain)",
+				_active = true,
+				_parent = new SceneNodeId(parentId),
+				_lpos = new Vec3 { x = 0, y = 0, z = -terrain.terrainData.size.z },
+				_lrot = Quat.Identity,
+				_lscale = new Vec3 { x = 1, y = 1, z = 1 },
+				_mobility = t.gameObject.isStatic ? 0 : 2,
+				_euler = Vec3.Zero,
+				_layer = 1 << Utils.LayerConvert(t.gameObject.layer)
+			};
 		}
 
 		/// <summary>
@@ -182,14 +227,6 @@ namespace Unity2Cocos
 					offset = t.parent.rotation * offset;
 				}
 				p += new Vector3(offset.x, offset.y, -offset.z);
-			}
-
-			if (t.TryGetComponent<UnityEngine.Terrain>(out var terrain) && terrain.terrainData)
-			{
-				// Cocos terrain extends toward +x/+z from its node origin.
-				// With the LH -> RH conversion (z flip), Unity's terrain area [z, z + size.z] maps to
-				// [-(z + size.z), -z], so shift the node by +size.z in Unity space before mirroring.
-				p += t.localRotation * new Vector3(0, 0, terrain.terrainData.size.z);
 			}
 
 			return new Node

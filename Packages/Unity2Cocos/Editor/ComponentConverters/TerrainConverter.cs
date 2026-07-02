@@ -363,6 +363,26 @@ namespace Unity2Cocos
 					continue;
 				}
 				var prototypes = data.treePrototypes;
+
+				// Terrain trees are instanced by Unity's terrain system. Reproduce that in Cocos by
+				// forcing GPU instancing on the materials used by the tree prototypes.
+				if (ExportSetting.Instance.Advanced.TerrainTreeGPUInstancing)
+				{
+					foreach (var prototype in prototypes)
+					{
+						if (!prototype.prefab)
+						{
+							continue;
+						}
+						foreach (var renderer in prototype.prefab.GetComponentsInChildren<Renderer>(true))
+						{
+							foreach (var material in renderer.sharedMaterials)
+							{
+								MaterialConverter.RegisterForceInstancing(material);
+							}
+						}
+					}
+				}
 				var size = data.size;
 				var basePos = terrain.transform.position;
 				foreach (var inst in data.treeInstances)
