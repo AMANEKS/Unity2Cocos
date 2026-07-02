@@ -292,6 +292,9 @@ namespace Unity2Cocos
 					// Fall back to Cocos' builtin default particle material.
 					materialUuid = "c0143906-9aed-447e-9436-2ae8512d1b6e";
 				}
+				// NOTE: The renderer's _cpuMaterial is the source of truth in Cocos.
+				// (Its setter overwrites _materials[0], so leaving it null clears the material.)
+				renderer["_cpuMaterial"] = new AssetReference<cc.Material>(materialUuid);
 				var materials = new List<AssetReference<cc.Material>>
 				{
 					new AssetReference<cc.Material>(materialUuid)
