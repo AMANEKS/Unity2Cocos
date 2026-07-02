@@ -381,8 +381,11 @@ namespace Unity2Cocos
 					go.transform.SetParent(terrain.transform, true);
 					go.transform.position = basePos + new Vector3(
 						inst.position.x * size.x, inst.position.y * size.y, inst.position.z * size.z);
-					go.transform.rotation = Quaternion.Euler(0, inst.rotation * Mathf.Rad2Deg, 0);
-					go.transform.localScale = new Vector3(inst.widthScale, inst.heightScale, inst.widthScale);
+					// Compose with the prefab root's own rotation / scale, not replace them.
+					go.transform.rotation =
+						Quaternion.AngleAxis(inst.rotation * Mathf.Rad2Deg, Vector3.up) * prefab.transform.rotation;
+					go.transform.localScale = Vector3.Scale(
+						prefab.transform.localScale, new Vector3(inst.widthScale, inst.heightScale, inst.widthScale));
 					spawned.Add(go);
 				}
 			}

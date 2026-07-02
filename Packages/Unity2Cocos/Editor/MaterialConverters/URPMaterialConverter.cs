@@ -13,6 +13,7 @@ namespace Unity2Cocos
 		private static readonly int Color = Shader.PropertyToID("_Color");
 		private static readonly int Cutoff = Shader.PropertyToID("_Cutoff");
 		private static readonly int Surface = Shader.PropertyToID("_Surface");
+		private static readonly int Mode = Shader.PropertyToID("_Mode");
 		private static readonly int Cull = Shader.PropertyToID("_Cull");
 		private static readonly int SrcBlend = Shader.PropertyToID("_SrcBlend");
 		private static readonly int DstBlend = Shader.PropertyToID("_DstBlend");
@@ -52,6 +53,21 @@ namespace Unity2Cocos
 					w = offset.y
 				});
 			}
+			else if (TryFindCustomMainTexture(urpMat, out var customTexProp, out var customTexture))
+			{
+				// Custom shaders often use their own property names. (ex. "_BaseColorTexture")
+				define.Add(cocosTextureUseKeyword, true);
+				prop.Add("mainTexture", new AssetReference<cc.Texture2D>(Exporter.GetUuidOrExportAsset(customTexture)));
+				var scale = urpMat.GetTextureScale(customTexProp);
+				var offset = urpMat.GetTextureOffset(customTexProp);
+				prop.Add("tilingOffset", new Vec4()
+				{
+					x = scale.x,
+					y = scale.y,
+					z = offset.x,
+					w = offset.y
+				});
+			}
 
 			// Color
 			if (urpMat.HasColor(BaseColor))
@@ -62,18 +78,33 @@ namespace Unity2Cocos
 			{
 				prop.Add("mainColor", Utils.Color32ToCocosColor(urpMat.GetColor(Color)));
 			}
-			
+			else if (TryFindCustomMainColor(urpMat, out var customColor))
+			{
+				// Custom shader tint color. (ex. "_BaseTexColorTint")
+				// NOTE: Alpha is forced to 1, as it is often unused and would break alpha test.
+				customColor.a = 1f;
+				prop.Add("mainColor", Utils.Color32ToCocosColor(customColor));
+			}
+
 			// Alpha Test
-			if (urpMat.IsKeywordEnabled("_ALPHATEST_ON"))
+			// Custom shaders clip without the keyword, so also check the RenderType tag.
+			var isAlphaTest = urpMat.IsKeywordEnabled("_ALPHATEST_ON") ||
+			                  urpMat.GetTag("RenderType", true, string.Empty) == "TransparentCutout";
+			if (isAlphaTest)
 			{
 				define.Add("USE_ALPHA_TEST", true);
-				prop.Add("alphaThreshold", urpMat.GetFloat(Cutoff));
+				prop.Add("alphaThreshold", urpMat.HasFloat(Cutoff) ? urpMat.GetFloat(Cutoff) : 0.5f);
 			}
-			
+
 			// Cull Mode
 			if (urpMat.HasFloat(Cull) && urpMat.GetInt(Cull) != 2)
 			{
 				state.rasterizerState.Add("cullMode", urpMat.GetInt(Cull));
+			}
+			else if (isAlphaTest && !urpMat.HasFloat(Cull) && !urpMat.HasFloat(Surface) && !urpMat.HasFloat(Mode))
+			{
+				// Custom cutout shaders (ex. foliage) typically hardcode "Cull Off", render double-sided.
+				state.rasterizerState.Add("cullMode", 0);
 			}
 			
 			// Blend Mode
@@ -102,6 +133,116 @@ namespace Unity2Cocos
 				var priorityOffset = urpMat.renderQueue - (int)UnityEngine.Rendering.RenderQueue.Geometry;
 				state.priority = Mathf.Clamp(state.priority + priorityOffset, 0, 255);
 			}
+		}
+
+		private static readonly string[] _texturePreferKeywords =
+			{ "basecolor", "albedo", "diffuse", "base", "main", "color" };
+		private static readonly string[] _textureExcludeKeywords =
+		{
+			"normal", "bump", "emis", "metal", "rough", "smooth", "spec",
+			"occl", "mask", "detail", "noise", "wind", "fade", "gradient"
+		};
+
+		/// <summary>
+		/// Finds the most likely albedo texture from a custom shader's texture properties.
+		/// </summary>
+		private static bool TryFindCustomMainTexture(
+			UnityEngine.Material mat, out string propName, out Texture texture)
+		{
+			propName = null;
+			texture = null;
+			var shader = mat.shader;
+			if (!shader)
+			{
+				return false;
+			}
+			var bestScore = int.MaxValue;
+			var count = shader.GetPropertyCount();
+			for (var i = 0; i < count; ++i)
+			{
+				if (shader.GetPropertyType(i) != UnityEngine.Rendering.ShaderPropertyType.Texture)
+				{
+					continue;
+				}
+				var name = shader.GetPropertyName(i);
+				var lower = name.ToLowerInvariant();
+				if (System.Array.Exists(_textureExcludeKeywords, k => lower.Contains(k)))
+				{
+					continue;
+				}
+				var tex = mat.GetTexture(name);
+				if (!(tex is UnityEngine.Texture2D))
+				{
+					continue;
+				}
+				var keywordRank = _texturePreferKeywords.Length;
+				for (var k = 0; k < _texturePreferKeywords.Length; ++k)
+				{
+					if (lower.Contains(_texturePreferKeywords[k]))
+					{
+						keywordRank = k;
+						break;
+					}
+				}
+				var score = keywordRank * 1000 + i;
+				if (score < bestScore)
+				{
+					bestScore = score;
+					propName = name;
+					texture = tex;
+				}
+			}
+			return texture;
+		}
+
+		private static readonly string[] _colorPreferKeywords =
+			{ "basecolor", "maincolor", "albedo", "tint", "color" };
+		private static readonly string[] _colorExcludeKeywords =
+		{
+			"emis", "spec", "fade", "wind", "ground", "distance",
+			"rim", "outline", "shadow", "fresnel"
+		};
+
+		/// <summary>
+		/// Finds the most likely main (tint) color from a custom shader's color properties.
+		/// </summary>
+		private static bool TryFindCustomMainColor(UnityEngine.Material mat, out UnityEngine.Color color)
+		{
+			color = UnityEngine.Color.white;
+			var shader = mat.shader;
+			if (!shader)
+			{
+				return false;
+			}
+			var found = false;
+			var bestScore = int.MaxValue;
+			var count = shader.GetPropertyCount();
+			for (var i = 0; i < count; ++i)
+			{
+				if (shader.GetPropertyType(i) != UnityEngine.Rendering.ShaderPropertyType.Color)
+				{
+					continue;
+				}
+				var name = shader.GetPropertyName(i);
+				var lower = name.ToLowerInvariant();
+				if (System.Array.Exists(_colorExcludeKeywords, k => lower.Contains(k)))
+				{
+					continue;
+				}
+				var keywordRank = System.Array.FindIndex(_colorPreferKeywords, k => lower.Contains(k));
+				if (keywordRank < 0)
+				{
+					continue;
+				}
+				var score = keywordRank * 1000 + i;
+				if (score < bestScore)
+				{
+					bestScore = score;
+					color = mat.GetColor(name);
+					found = true;
+				}
+			}
+			return found;
 		}
 
 		private static readonly int BumpMap = Shader.PropertyToID("_BumpMap");

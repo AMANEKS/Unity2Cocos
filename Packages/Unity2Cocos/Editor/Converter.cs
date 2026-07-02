@@ -184,6 +184,14 @@ namespace Unity2Cocos
 				p += new Vector3(offset.x, offset.y, -offset.z);
 			}
 
+			if (t.TryGetComponent<UnityEngine.Terrain>(out var terrain) && terrain.terrainData)
+			{
+				// Cocos terrain extends toward +x/+z from its node origin.
+				// With the LH -> RH conversion (z flip), Unity's terrain area [z, z + size.z] maps to
+				// [-(z + size.z), -z], so shift the node by +size.z in Unity space before mirroring.
+				p += t.localRotation * new Vector3(0, 0, terrain.terrainData.size.z);
+			}
+
 			return new Node
 			{
 				_name = t.name,

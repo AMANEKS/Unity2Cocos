@@ -40,3 +40,5 @@ sysinfo.txt
 # VSCode
 .code-workspace
 .vscode/settings.json
+.DS_Store
+
