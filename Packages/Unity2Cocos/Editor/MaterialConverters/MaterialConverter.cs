@@ -62,10 +62,15 @@ namespace Unity2Cocos
 			}
 			
 			// Instancing
-			var define = ccMat._defines[0];
 			if (src.enableInstancing || _forceInstancingMaterials.Contains(src.GetHashCode()))
 			{
-				define.Add("USE_INSTANCING", true);
+				// NOTE: Apply to every pass like the Cocos editor does.
+				// Enabling instancing only on the forward pass leaves the shadow-caster pass
+				// non-instanced, and such models fail to render into the shadow map.
+				foreach (var define in ccMat._defines)
+				{
+					define.Add("USE_INSTANCING", true);
+				}
 			}
 
 			return ccMat;
