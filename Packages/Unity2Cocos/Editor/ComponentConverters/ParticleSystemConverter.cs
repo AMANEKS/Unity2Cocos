@@ -34,6 +34,8 @@ namespace cc
 		public object _shapeModule;
 		public object _sizeOvertimeModule;
 		public object _velocityOvertimeModule;
+		public object _forceOvertimeModule;
+		public object _limitVelocityOvertimeModule;
 		public object _rotationOvertimeModule;
 		public object _textureAnimationModule;
 		public object _noiseModule;
@@ -107,34 +109,29 @@ namespace Unity2Cocos
 			}
 
 			// Modules
+			// NOTE: The Cocos inspector requires every module object to exist (it reads `.enable`),
+			// so always export all modules and control them with the _enable flag.
 			ccPs._shapeModule = ConvertShape(ps.shape, path);
-			if (ps.colorOverLifetime.enabled)
+			ccPs._colorOverLifetimeModule = new Dictionary<string, object>
 			{
-				ccPs._colorOverLifetimeModule = new Dictionary<string, object>
-				{
-					{ "__type__", "cc.ColorOvertimeModule" },
-					{ "_enable", true },
-					{ "color", ParticleData.GradientRange(ps.colorOverLifetime.color) },
-				};
-			}
-			if (ps.sizeOverLifetime.enabled)
+				{ "__type__", "cc.ColorOvertimeModule" },
+				{ "_enable", ps.colorOverLifetime.enabled },
+				{ "color", ParticleData.GradientRange(ps.colorOverLifetime.color) },
+			};
+			ccPs._sizeOvertimeModule = new Dictionary<string, object>
 			{
-				ccPs._sizeOvertimeModule = new Dictionary<string, object>
-				{
-					{ "__type__", "cc.SizeOvertimeModule" },
-					{ "_enable", true },
-					{ "separateAxes", false },
-					{ "size", ParticleData.Curve(ps.sizeOverLifetime.size) },
-				};
-			}
-			if (ps.velocityOverLifetime.enabled)
+				{ "__type__", "cc.SizeOvertimeModule" },
+				{ "_enable", ps.sizeOverLifetime.enabled },
+				{ "separateAxes", false },
+				{ "size", ParticleData.Curve(ps.sizeOverLifetime.size) },
+			};
 			{
 				var vel = ps.velocityOverLifetime;
 				var worldSpace = vel.space == ParticleSystemSimulationSpace.World;
 				ccPs._velocityOvertimeModule = new Dictionary<string, object>
 				{
 					{ "__type__", "cc.VelocityOvertimeModule" },
-					{ "_enable", true },
+					{ "_enable", vel.enabled },
 					{ "x", ParticleData.Curve(vel.x) },
 					{ "y", ParticleData.Curve(vel.y) },
 					// World space velocity needs the LH -> RH z flip.
@@ -143,13 +140,39 @@ namespace Unity2Cocos
 					{ "speedModifier", ParticleData.Curve(vel.speedModifier) },
 				};
 			}
-			if (ps.rotationOverLifetime.enabled)
+			{
+				var force = ps.forceOverLifetime;
+				var worldSpace = force.space == ParticleSystemSimulationSpace.World;
+				ccPs._forceOvertimeModule = new Dictionary<string, object>
+				{
+					{ "__type__", "cc.ForceOvertimeModule" },
+					{ "_enable", force.enabled },
+					{ "x", ParticleData.Curve(force.x) },
+					{ "y", ParticleData.Curve(force.y) },
+					{ "z", ParticleData.Curve(force.z, worldSpace ? -1f : 1f) },
+					{ "space", worldSpace ? 0 : 1 },
+				};
+			}
+			{
+				var limit = ps.limitVelocityOverLifetime;
+				ccPs._limitVelocityOvertimeModule = new Dictionary<string, object>
+				{
+					{ "__type__", "cc.LimitVelocityOvertimeModule" },
+					{ "_enable", limit.enabled },
+					{ "limitX", ParticleData.Curve(limit.limitX) },
+					{ "limitY", ParticleData.Curve(limit.limitY) },
+					{ "limitZ", ParticleData.Curve(limit.limitZ) },
+					{ "limit", ParticleData.Curve(limit.limit) },
+					{ "dampen", limit.dampen },
+					{ "separateAxes", limit.separateAxes },
+				};
+			}
 			{
 				var rot = ps.rotationOverLifetime;
 				var module = new Dictionary<string, object>
 				{
 					{ "__type__", "cc.RotationOvertimeModule" },
-					{ "_enable", true },
+					{ "_enable", rot.enabled },
 					{ "_separateAxes", rot.separateAxes },
 					{ "z", ParticleData.Curve(rot.z, Mathf.Rad2Deg) },
 				};
@@ -160,13 +183,12 @@ namespace Unity2Cocos
 				}
 				ccPs._rotationOvertimeModule = module;
 			}
-			if (ps.textureSheetAnimation.enabled)
 			{
 				var tex = ps.textureSheetAnimation;
 				ccPs._textureAnimationModule = new Dictionary<string, object>
 				{
 					{ "__type__", "cc.TextureAnimationModule" },
-					{ "_enable", true },
+					{ "_enable", tex.enabled },
 					{ "_numTilesX", tex.numTilesX },
 					{ "_numTilesY", tex.numTilesY },
 					// Unity: WholeSheet=0, SingleRow=1 (same as Cocos)
@@ -176,7 +198,6 @@ namespace Unity2Cocos
 					{ "cycleCount", tex.cycleCount },
 				};
 			}
-			if (ps.noise.enabled)
 			{
 				var noise = ps.noise;
 				var strengthX = ParticleData.ConstantValue(noise.separateAxes ? noise.strengthX : noise.strength);
@@ -185,7 +206,7 @@ namespace Unity2Cocos
 				ccPs._noiseModule = new Dictionary<string, object>
 				{
 					{ "__type__", "cc.NoiseModule" },
-					{ "_enable", true },
+					{ "_enable", noise.enabled },
 					{ "_strengthX", strengthX },
 					{ "_strengthY", strengthY },
 					{ "_strengthZ", strengthZ },
@@ -195,17 +216,16 @@ namespace Unity2Cocos
 				};
 			}
 			var trailMaterialUuid = string.Empty;
-			if (ps.trails.enabled)
 			{
 				var trails = ps.trails;
-				if (trails.mode != ParticleSystemTrailMode.PerParticle)
+				if (trails.enabled && trails.mode != ParticleSystemTrailMode.PerParticle)
 				{
 					Debug.LogWarning($"[ParticleSystemConverter] Ribbon trail is not supported. -> {path}");
 				}
 				ccPs._trailModule = new Dictionary<string, object>
 				{
 					{ "__type__", "cc.TrailModule" },
-					{ "_enable", true },
+					{ "_enable", trails.enabled },
 					{ "mode", 0 },
 					{ "lifeTime", ParticleData.Curve(trails.lifetime) },
 					{ "_minParticleDistance", trails.minVertexDistance },
@@ -218,7 +238,7 @@ namespace Unity2Cocos
 					{ "colorOverTrail", ParticleData.GradientRange(trails.colorOverTrail) },
 					{ "colorOvertime", ParticleData.GradientRange(trails.colorOverLifetime) },
 				};
-				if (psRenderer && psRenderer.trailMaterial)
+				if (trails.enabled && psRenderer && psRenderer.trailMaterial)
 				{
 					trailMaterialUuid = ParticleMaterialExporter.Export(
 						psRenderer.trailMaterial, ParticleMaterialExporter.TrailEffect);
@@ -265,12 +285,15 @@ namespace Unity2Cocos
 				}
 				var material = psRenderer.sharedMaterial;
 				var materialUuid = material ? ParticleMaterialExporter.Export(material) : string.Empty;
-				var materials = new List<AssetReference<cc.Material>>();
-				if (!string.IsNullOrEmpty(materialUuid) || !string.IsNullOrEmpty(trailMaterialUuid))
+				if (string.IsNullOrEmpty(materialUuid))
 				{
-					materials.Add(string.IsNullOrEmpty(materialUuid)
-						? null : new AssetReference<cc.Material>(materialUuid));
+					// Fall back to Cocos' builtin default particle material.
+					materialUuid = "c0143906-9aed-447e-9436-2ae8512d1b6e";
 				}
+				var materials = new List<AssetReference<cc.Material>>
+				{
+					new AssetReference<cc.Material>(materialUuid)
+				};
 				if (!string.IsNullOrEmpty(trailMaterialUuid))
 				{
 					// Trail material is assigned to the second material slot.
@@ -285,10 +308,6 @@ namespace Unity2Cocos
 
 		private static object ConvertShape(UnityEngine.ParticleSystem.ShapeModule shape, string path)
 		{
-			if (!shape.enabled)
-			{
-				return null;
-			}
 			// Unity ShapeType -> Cocos (shapeType, emitFrom). Cocos: Box=0, Circle=1, Cone=2, Sphere=3, Hemisphere=4
 			// Cocos EmitLocation: Base=0, Edge=1, Shell=2, Volume=3
 			int shapeType;
@@ -309,15 +328,18 @@ namespace Unity2Cocos
 				case ParticleSystemShapeType.Circle: shapeType = 1; break;
 				case ParticleSystemShapeType.CircleEdge: shapeType = 1; emitFrom = 1; break;
 				default:
-					Debug.LogWarning(
-						$"[ParticleSystemConverter] Unsupported shape type '{shape.shapeType}', using Sphere. -> {path}");
+					if (shape.enabled)
+					{
+						Debug.LogWarning(
+							$"[ParticleSystemConverter] Unsupported shape type '{shape.shapeType}', using Sphere. -> {path}");
+					}
 					shapeType = 3;
 					break;
 			}
 			return new Dictionary<string, object>
 			{
 				{ "__type__", "cc.ShapeModule" },
-				{ "_enable", true },
+				{ "_enable", shape.enabled },
 				{ "_shapeType", shapeType },
 				{ "emitFrom", emitFrom },
 				{ "_angle", shape.angle * Mathf.Deg2Rad },
