@@ -269,6 +269,7 @@ namespace Unity2Cocos
 				{ "_mesh", null },
 				{ "_mainTexture", null },
 				{ "_useGPU", false },
+				{ "_alignSpace", 2 },
 			};
 			if (psRenderer)
 			{
@@ -279,6 +280,16 @@ namespace Unity2Cocos
 					renderMode = 0;
 				}
 				renderer["_renderMode"] = renderMode;
+				// Unity ParticleSystemRenderSpace: View=0, World=1, Local=2, Facing=3, Velocity=4
+				// Cocos ParticleAlignmentSpace: World=0, Local=1, View=2 (default View)
+				// Unity's "Local" follows the transform's world orientation, which is what
+				// Cocos "World" does (node.getWorldRotation) - Cocos "Local" ignores parents.
+				renderer["_alignSpace"] = psRenderer.alignment switch
+				{
+					ParticleSystemRenderSpace.World => 0,
+					ParticleSystemRenderSpace.Local => 0,
+					_ => 2,
+				};
 				renderer["_velocityScale"] = psRenderer.velocityScale;
 				renderer["_lengthScale"] = psRenderer.lengthScale;
 				if (psRenderer.renderMode == ParticleSystemRenderMode.Mesh && psRenderer.mesh)
@@ -562,7 +573,8 @@ namespace Unity2Cocos
 					alphaKeys.Add(new Dictionary<string, object>
 					{
 						{ "__type__", "cc.AlphaKey" },
-						{ "alpha", key.alpha },
+						// NOTE: Cocos AlphaKey.alpha is in the 0-255 scale. (assigned to cc.Color.a)
+						{ "alpha", Mathf.Clamp01(key.alpha) * 255f },
 						{ "time", key.time },
 					});
 				}
