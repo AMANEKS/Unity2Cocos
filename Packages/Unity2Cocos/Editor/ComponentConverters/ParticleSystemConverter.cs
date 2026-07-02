@@ -36,6 +36,8 @@ namespace cc
 		public object _velocityOvertimeModule;
 		public object _rotationOvertimeModule;
 		public object _textureAnimationModule;
+		public object _noiseModule;
+		public object _trailModule;
 		public object renderer;
 		public bool _prewarm;
 		public int _capacity;
@@ -174,13 +176,65 @@ namespace Unity2Cocos
 					{ "cycleCount", tex.cycleCount },
 				};
 			}
-			if (ps.trails.enabled)
-			{
-				Debug.LogWarning($"[ParticleSystemConverter] Trail module is not supported. -> {path}");
-			}
 			if (ps.noise.enabled)
 			{
-				Debug.LogWarning($"[ParticleSystemConverter] Noise module is not supported. -> {path}");
+				var noise = ps.noise;
+				var strengthX = ParticleData.ConstantValue(noise.separateAxes ? noise.strengthX : noise.strength);
+				var strengthY = ParticleData.ConstantValue(noise.separateAxes ? noise.strengthY : noise.strength);
+				var strengthZ = ParticleData.ConstantValue(noise.separateAxes ? noise.strengthZ : noise.strength);
+				ccPs._noiseModule = new Dictionary<string, object>
+				{
+					{ "__type__", "cc.NoiseModule" },
+					{ "_enable", true },
+					{ "_strengthX", strengthX },
+					{ "_strengthY", strengthY },
+					{ "_strengthZ", strengthZ },
+					{ "_noiseSpeedX", ParticleData.ConstantValue(noise.scrollSpeed) },
+					{ "_noiseFrequency", noise.frequency },
+					{ "_octaves", noise.octaveCount },
+				};
+			}
+			var trailMaterialUuid = string.Empty;
+			if (ps.trails.enabled)
+			{
+				var trails = ps.trails;
+				if (trails.mode != ParticleSystemTrailMode.PerParticle)
+				{
+					Debug.LogWarning($"[ParticleSystemConverter] Ribbon trail is not supported. -> {path}");
+				}
+				ccPs._trailModule = new Dictionary<string, object>
+				{
+					{ "__type__", "cc.TrailModule" },
+					{ "_enable", true },
+					{ "mode", 0 },
+					{ "lifeTime", ParticleData.Curve(trails.lifetime) },
+					{ "_minParticleDistance", trails.minVertexDistance },
+					{ "existWithParticles", trails.dieWithParticles },
+					// Unity: Stretch=0, Tile=1... / Cocos TextureMode: Stretch=0, Repeat=1
+					{ "textureMode", trails.textureMode == ParticleSystemTrailTextureMode.Stretch ? 0 : 1 },
+					{ "widthFromParticle", trails.sizeAffectsWidth },
+					{ "widthRatio", ParticleData.Curve(trails.widthOverTrail) },
+					{ "colorFromParticle", trails.inheritParticleColor },
+					{ "colorOverTrail", ParticleData.GradientRange(trails.colorOverTrail) },
+					{ "colorOvertime", ParticleData.GradientRange(trails.colorOverLifetime) },
+				};
+				if (psRenderer && psRenderer.trailMaterial)
+				{
+					trailMaterialUuid = ParticleMaterialExporter.Export(
+						psRenderer.trailMaterial, ParticleMaterialExporter.TrailEffect);
+				}
+			}
+			if (ps.collision.enabled)
+			{
+				Debug.LogWarning($"[ParticleSystemConverter] Collision module is not supported. -> {path}");
+			}
+			if (ps.subEmitters.enabled)
+			{
+				Debug.LogWarning($"[ParticleSystemConverter] SubEmitters module is not supported. -> {path}");
+			}
+			if (ps.lights.enabled)
+			{
+				Debug.LogWarning($"[ParticleSystemConverter] Lights module is not supported. -> {path}");
 			}
 
 			// Renderer
@@ -210,14 +264,19 @@ namespace Unity2Cocos
 					renderer["_mesh"] = new AssetReference<cc.Mesh>(Exporter.GetUuidOrExportAsset(psRenderer.mesh));
 				}
 				var material = psRenderer.sharedMaterial;
-				if (material)
+				var materialUuid = material ? ParticleMaterialExporter.Export(material) : string.Empty;
+				var materials = new List<AssetReference<cc.Material>>();
+				if (!string.IsNullOrEmpty(materialUuid) || !string.IsNullOrEmpty(trailMaterialUuid))
 				{
-					var uuid = ParticleMaterialExporter.Export(material);
-					if (!string.IsNullOrEmpty(uuid))
-					{
-						ccPs._materials = new[] { new AssetReference<cc.Material>(uuid) };
-					}
+					materials.Add(string.IsNullOrEmpty(materialUuid)
+						? null : new AssetReference<cc.Material>(materialUuid));
 				}
+				if (!string.IsNullOrEmpty(trailMaterialUuid))
+				{
+					// Trail material is assigned to the second material slot.
+					materials.Add(new AssetReference<cc.Material>(trailMaterialUuid));
+				}
+				ccPs._materials = materials.ToArray();
 			}
 			ccPs.renderer = renderer;
 
@@ -303,24 +362,111 @@ namespace Unity2Cocos
 					dict.Add("mode", 3);
 					dict.Add("constantMin", curve.constantMin * scale);
 					dict.Add("constantMax", curve.constantMax * scale);
+					dict.Add("multiplier", 1f);
 					break;
 				case ParticleSystemCurveMode.Curve:
-					// NOTE: Curve keyframes are not converted, approximate with the average value.
-					dict.Add("mode", 0);
-					dict.Add("constant", AverageCurve(curve.curve) * curve.curveMultiplier * scale);
+					dict.Add("mode", 1);
+					dict.Add("spline", RealCurve(curve.curve));
+					// Bake the unit conversion into the multiplier.
+					dict.Add("multiplier", curve.curveMultiplier * scale);
 					break;
 				case ParticleSystemCurveMode.TwoCurves:
-					dict.Add("mode", 3);
-					dict.Add("constantMin", AverageCurve(curve.curveMin) * curve.curveMultiplier * scale);
-					dict.Add("constantMax", AverageCurve(curve.curveMax) * curve.curveMultiplier * scale);
+					dict.Add("mode", 2);
+					dict.Add("splineMin", RealCurve(curve.curveMin));
+					dict.Add("splineMax", RealCurve(curve.curveMax));
+					dict.Add("multiplier", curve.curveMultiplier * scale);
 					break;
 				default: // Constant
 					dict.Add("mode", 0);
 					dict.Add("constant", curve.constant * scale);
+					dict.Add("multiplier", 1f);
 					break;
 			}
-			dict.Add("multiplier", 1f);
 			return dict;
+		}
+
+		/// <summary>
+		/// Converts a Unity AnimationCurve into a cc.RealCurve.
+		/// (Both use cubic hermite interpolation with in/out tangents.)
+		/// </summary>
+		private static object RealCurve(AnimationCurve curve)
+		{
+			var times = new List<float>();
+			var values = new List<object>();
+			if (curve != null)
+			{
+				foreach (var key in curve.keys)
+				{
+					times.Add(key.time);
+					// Cocos RealInterpolationMode: LINEAR = 0, CONSTANT = 1, CUBIC = 2
+					var interpolationMode = 2;
+					var leftTangent = key.inTangent;
+					var rightTangent = key.outTangent;
+					if (float.IsInfinity(rightTangent))
+					{
+						interpolationMode = 1;
+						rightTangent = 0f;
+					}
+					if (float.IsInfinity(leftTangent))
+					{
+						leftTangent = 0f;
+					}
+					// Cocos TangentWeightMode: NONE = 0, LEFT = 1, RIGHT = 2, BOTH = 3
+					var tangentWeightMode = 0;
+					var leftWeight = 0f;
+					var rightWeight = 0f;
+					switch (key.weightedMode)
+					{
+						case WeightedMode.In: tangentWeightMode = 1; leftWeight = key.inWeight; break;
+						case WeightedMode.Out: tangentWeightMode = 2; rightWeight = key.outWeight; break;
+						case WeightedMode.Both:
+							tangentWeightMode = 3;
+							leftWeight = key.inWeight;
+							rightWeight = key.outWeight;
+							break;
+					}
+					values.Add(new Dictionary<string, object>
+					{
+						{ "__type__", "cc.RealKeyframeValue" },
+						{ "interpolationMode", interpolationMode },
+						{ "tangentWeightMode", tangentWeightMode },
+						{ "value", key.value },
+						{ "rightTangent", rightTangent },
+						{ "rightTangentWeight", rightWeight },
+						{ "leftTangent", leftTangent },
+						{ "leftTangentWeight", leftWeight },
+						{ "easingMethod", 0 },
+					});
+				}
+			}
+			return new Dictionary<string, object>
+			{
+				{ "__type__", "cc.RealCurve" },
+				{ "_times", times },
+				{ "_values", values },
+				// ExtrapolationMode.CLAMP = 1
+				{ "preExtrapolation", 1 },
+				{ "postExtrapolation", 1 },
+			};
+		}
+
+		/// <summary>
+		/// Evaluates a MinMaxCurve to a representative constant value.
+		/// (For Cocos properties that only accept plain numbers.)
+		/// </summary>
+		public static float ConstantValue(UnityEngine.ParticleSystem.MinMaxCurve curve)
+		{
+			switch (curve.mode)
+			{
+				case ParticleSystemCurveMode.TwoConstants:
+					return (curve.constantMin + curve.constantMax) * 0.5f;
+				case ParticleSystemCurveMode.Curve:
+					return AverageCurve(curve.curve) * curve.curveMultiplier;
+				case ParticleSystemCurveMode.TwoCurves:
+					return (AverageCurve(curve.curveMin) + AverageCurve(curve.curveMax)) * 0.5f * curve.curveMultiplier;
+				default:
+					return curve.constant;
+			}
 		}
 
 		private static float AverageCurve(AnimationCurve curve)
@@ -409,9 +555,10 @@ namespace Unity2Cocos
 	/// </summary>
 	public static class ParticleMaterialExporter
 	{
-		private const string BuiltinParticleEffectUuid = "d1346436-ac96-4271-b863-1f4fdead95b0";
+		public const string ParticleEffect = "d1346436-ac96-4271-b863-1f4fdead95b0";
+		public const string TrailEffect = "17debcc3-0a6b-4b8a-b00b-dc58b885581e";
 
-		private static readonly Dictionary<int, string> _cache = new();
+		private static readonly Dictionary<string, string> _cache = new();
 
 		public static void ClearCache()
 		{
@@ -427,9 +574,10 @@ namespace Unity2Cocos
 			}
 		}
 
-		public static string Export(UnityEngine.Material material)
+		public static string Export(UnityEngine.Material material, string effectUuid = ParticleEffect)
 		{
-			if (_cache.TryGetValue(material.GetHashCode(), out var cached))
+			var cacheKey = $"{material.GetHashCode()}:{effectUuid}";
+			if (_cache.TryGetValue(cacheKey, out var cached))
 			{
 				return cached;
 			}
@@ -439,7 +587,7 @@ namespace Unity2Cocos
 				return string.Empty;
 			}
 
-			var ccMat = MaterialConverter.CreateMaterial(material, BuiltinParticleEffectUuid, 1);
+			var ccMat = MaterialConverter.CreateMaterial(material, effectUuid, 1);
 			// builtin-particle techniques: 0 = add, 1 = alpha-blend
 			ccMat._techIdx = IsAdditive(material) ? 0 : 1;
 
@@ -484,11 +632,16 @@ namespace Unity2Cocos
 				w = Mathf.Clamp01(tint.a) * 0.5f
 			});
 
+			// Avoid an output path collision when the same material is also exported with another effect.
+			if (effectUuid == TrailEffect)
+			{
+				srcPath = srcPath.Substring(0, srcPath.Length - ".mat".Length) + "-trail.mat";
+			}
 			var info = new AssetExporter.ExportInfo(srcPath, Exporter.OutputFolderPath, ".mtl");
 			var ccMeta = new Meta();
 			AssetExporter.ExportAssetToJson(ccMat, info);
 			AssetExporter.ExportMeta(ccMeta, info);
-			_cache.Add(material.GetHashCode(), ccMeta.uuid);
+			_cache.Add(cacheKey, ccMeta.uuid);
 			return ccMeta.uuid;
 		}
 
