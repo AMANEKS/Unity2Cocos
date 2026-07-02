@@ -14,6 +14,7 @@ namespace Unity2Cocos
 		private static readonly int Cutoff = Shader.PropertyToID("_Cutoff");
 		private static readonly int Surface = Shader.PropertyToID("_Surface");
 		private static readonly int Mode = Shader.PropertyToID("_Mode");
+		private static readonly int Opacity = Shader.PropertyToID("_Opacity");
 		private static readonly int Cull = Shader.PropertyToID("_Cull");
 		private static readonly int SrcBlend = Shader.PropertyToID("_SrcBlend");
 		private static readonly int DstBlend = Shader.PropertyToID("_DstBlend");
@@ -123,6 +124,33 @@ namespace Unity2Cocos
 				}
 			}
 			
+			// Transparent custom shaders (ex. water).
+			// URP (_Surface) and built-in Standard (_Mode) transparency are handled by their converters.
+			if (!urpMat.HasFloat(Surface) && !urpMat.HasFloat(Mode) &&
+			    urpMat.GetTag("RenderType", true, string.Empty) == "Transparent")
+			{
+				ccMat._techIdx = 1;
+				// Custom shaders often control alpha with a dedicated property.
+				var opacity = urpMat.HasFloat(Opacity) ? Mathf.Clamp01(urpMat.GetFloat(Opacity)) : 0f;
+				if (prop.TryGetValue("mainColor", out var mainColorObj) && mainColorObj is cc.Color mainColor)
+				{
+					if (opacity <= 0f)
+					{
+						opacity = mainColor.a > 0 ? mainColor.a / 255f : 0.6f;
+					}
+					mainColor.a = (byte)Mathf.RoundToInt(opacity * 255f);
+				}
+				// Slight gloss so that transparent surfaces (water etc.) catch the light.
+				if (!prop.ContainsKey("roughness"))
+				{
+					prop.Add("roughness", 0.3f);
+				}
+				if (!prop.ContainsKey("specularIntensity"))
+				{
+					prop.Add("specularIntensity", 0.5f);
+				}
+			}
+
 			// Render Queue -> Priority
 			// Cocos default priority (128) corresponds to Unity's Geometry queue (2000), and a higher
 			// priority renders later. Converting Unity's render queue keeps the relative draw order,

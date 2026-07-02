@@ -241,6 +241,10 @@ namespace Unity2Cocos
 				shadowsInfo._size = new Vec2 { x = shadowResolution, y = shadowResolution };
 				shadowsInfo._distance = QualitySettings.shadowDistance;
 			}
+			if (ExportSetting.Instance.Advanced.ShadowDistance > 0)
+			{
+				shadowsInfo._distance = ExportSetting.Instance.Advanced.ShadowDistance;
+			}
 			sceneGlobals.shadows = new SceneNodeId(ccAsset.Count);
 			ccAsset.Add(shadowsInfo);
 			
@@ -270,8 +274,31 @@ namespace Unity2Cocos
 			sceneGlobals._skybox = new SceneNodeId(ccAsset.Count);
 			ccAsset.Add(skyBoxInfo);
 			
+			var fogInfo = new FogInfo();
+			fogInfo._enabled = RenderSettings.fog;
+			if (RenderSettings.fog)
+			{
+				// NOTE: Cocos converts the fog color to linear internally, so export sRGB as is.
+				fogInfo._fogColor = Utils.Color32ToCocosColor(RenderSettings.fogColor);
+				switch (RenderSettings.fogMode)
+				{
+					case FogMode.Linear:
+						fogInfo._type = 0; // LINEAR
+						fogInfo._fogStart = RenderSettings.fogStartDistance;
+						fogInfo._fogEnd = RenderSettings.fogEndDistance;
+						break;
+					case FogMode.Exponential:
+						fogInfo._type = 1; // EXP
+						fogInfo._fogDensity = Mathf.Clamp01(RenderSettings.fogDensity);
+						break;
+					case FogMode.ExponentialSquared:
+						fogInfo._type = 2; // EXP_SQUARED
+						fogInfo._fogDensity = Mathf.Clamp01(RenderSettings.fogDensity);
+						break;
+				}
+			}
 			sceneGlobals.fog = new SceneNodeId(ccAsset.Count);
-			ccAsset.Add(new FogInfo());
+			ccAsset.Add(fogInfo);
 			
 			sceneGlobals.octree = new SceneNodeId(ccAsset.Count);
 			ccAsset.Add(new OctreeInfo());

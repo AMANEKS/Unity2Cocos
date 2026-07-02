@@ -32,6 +32,10 @@ namespace Unity2Cocos
 			[Tooltip("Force GPU instancing (USE_INSTANCING) on materials used by terrain trees.\n" +
 			         "Reduces draw calls when a large amount of vegetation is placed on the terrain.")]
 			public bool TerrainTreeGPUInstancing = true;
+
+			[Tooltip("Overrides the shadow distance. (0 = use Unity's URP asset / QualitySettings value)\n" +
+			         "Smaller values sharpen the shadows near the camera.")]
+			public float ShadowDistance = 0;
 		}
 
 		public AdvancedSettings Advanced;

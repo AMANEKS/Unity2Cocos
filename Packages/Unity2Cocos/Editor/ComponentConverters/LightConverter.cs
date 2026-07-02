@@ -51,8 +51,8 @@ namespace cc
 					}
 					else
 					{
-						// Built-in Render Pipeline has no soft shadow quality setting, use SOFT.
-						_shadowPcf = 1;
+						// Built-in Render Pipeline has no soft shadow quality setting, use SOFT_2X.
+						_shadowPcf = 2;
 					}
 				}
 				else
@@ -101,6 +101,10 @@ namespace cc
 				// Built-in Render Pipeline fallback.
 				_shadowDistance = QualitySettings.shadowDistance;
 				_csmLevel = QualitySettings.shadowCascades > 1 ? 4 : 1;
+			}
+			if (ExportSetting.Instance.Advanced.ShadowDistance > 0)
+			{
+				_shadowDistance = ExportSetting.Instance.Advanced.ShadowDistance;
 			}
 		}
 	}
