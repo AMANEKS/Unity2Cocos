@@ -309,7 +309,14 @@ namespace Unity2Cocos
 			}
 			Debug.LogWarning(
 				$"[Material] Unsupported shader, export standard material. -> {material.name}<{shader}>");
-			return StandardMaterialConverter.GetStandardMaterial(material);
+			var ccMat = StandardMaterialConverter.GetStandardMaterial(material);
+			// Unknown shaders carry no PBR information. Cocos' standard effect defaults
+			// (roughness 0.5 / specularIntensity 0.5) look glossy, so export matte instead.
+			var prop = ccMat._props[0];
+			if (!prop.ContainsKey("roughness")) prop.Add("roughness", 1f);
+			if (!prop.ContainsKey("metallic")) prop.Add("metallic", 0f);
+			if (!prop.ContainsKey("specularIntensity")) prop.Add("specularIntensity", 0f);
+			return ccMat;
 		}
 	}
 }
