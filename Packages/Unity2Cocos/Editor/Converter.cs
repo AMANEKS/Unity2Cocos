@@ -23,6 +23,7 @@ namespace Unity2Cocos
 			_unityComponentToNodeId.Clear();
 			_meshDefaultPositions.Clear();
 			MaterialConverter.ClearForceInstancing();
+			ParticleMaterialExporter.ClearCache();
 			
 			// Component Converter
 			_componentConverters.Clear();

@@ -143,7 +143,7 @@ FBX mesh references are exported with the same sub-asset ids that Cocos Creator 
 | Volume<br>(PostProcessing) | ✅ | Global Volume only, uses Cocos PostProcess. Needs to be configured on Cocos side.<br> https://docs.cocos.com/creator/manual/en/render-pipeline/post-process/<br><br>Supported only by Bloom, FXAA. |
 | Colliders | ❌ | Future support. |
 | Rigidbody | ❌ | Future support. |
-| Particle System | ❌ | |
+| Particle System | ✅ | Main / Emission (Bursts) / Shape / Color over Lifetime / Size over Lifetime / Velocity over Lifetime / Rotation over Lifetime / Texture Sheet Animation / Renderer (Billboard, Stretched, Mesh).<br>Curve mode is approximated by the average value. Trail / Noise modules are not supported. |
 | Animator | ❌ | |
 
 ### Material Converters

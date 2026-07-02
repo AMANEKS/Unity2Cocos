@@ -174,7 +174,7 @@ namespace Unity2Cocos
 		/// <summary>
 		/// Finds the most likely albedo texture from a custom shader's texture properties.
 		/// </summary>
-		private static bool TryFindCustomMainTexture(
+		public static bool TryFindCustomMainTexture(
 			UnityEngine.Material mat, out string propName, out Texture texture)
 		{
 			propName = null;
@@ -234,7 +234,7 @@ namespace Unity2Cocos
 		/// <summary>
 		/// Finds the most likely main (tint) color from a custom shader's color properties.
 		/// </summary>
-		private static bool TryFindCustomMainColor(UnityEngine.Material mat, out UnityEngine.Color color)
+		public static bool TryFindCustomMainColor(UnityEngine.Material mat, out UnityEngine.Color color)
 		{
 			color = UnityEngine.Color.white;
 			var shader = mat.shader;
